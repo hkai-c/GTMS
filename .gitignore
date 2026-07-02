@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+*.manifest
+*.spec
+
+# 虚拟环境
+venv/
+.venv/
+env/
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# 数据库
+*.db
+*.sqlite3
+*.db-journal
+*.db-wal
+
+# 上传文件 (目录保留，内容忽略)
+uploads/*
+!uploads/.gitkeep
+!uploads/images/.gitkeep
+!uploads/reports/.gitkeep
+!uploads/cad/.gitkeep
+!uploads/videos/.gitkeep
+
+# 备份 (目录保留，内容忽略)
+backup/*
+!backup/.gitkeep
+
+# 日志
+*.log
+logs/
+*.log.*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# 环境变量
+.env
+.env.local
+.env.production
+.env.development
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+
+# 打包
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+~$*

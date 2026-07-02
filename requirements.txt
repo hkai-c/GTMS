@@ -1,0 +1,35 @@
+# GTMS 项目依赖
+# 磨床试磨管理系统 V1.0
+
+# Web 框架
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+
+# 数据库
+sqlalchemy>=2.0.23
+alembic>=1.12.1
+
+# 数据校验
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# 认证
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# 文件上传
+python-multipart>=0.0.6
+
+# HTTP 客户端
+httpx>=0.25.0
+
+# 桌面端
+pyside6>=6.8.0
+
+# 定时任务
+apscheduler>=3.10.4
+
+# 开发工具
+pytest>=7.4.3
+black>=23.11.0
+ruff>=0.1.6
