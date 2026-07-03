@@ -257,6 +257,41 @@ Sprint 内按任务顺序开发。
 
 再继续开发后续 Task。
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+索引唯一权威来源（Index Single Source of Truth）
+
+DB_DESIGN.md §5.1（索引汇总）为整个项目唯一的索引定义来源。
+
+所有以下内容必须严格以 §5.1 为准：
+
+- ORM 模型
+- DDL
+- Alembic Migration
+- Design Review
+- Documentation Sync
+- DEVELOPMENT_ROADMAP.md 中的索引统计
+
+DB_DESIGN.md §4.x 各表章节中的索引描述仅用于说明。
+
+若 §4.x 与 §5.1 不一致：
+
+视为设计文档冲突。
+
+必须：
+
+停止开发；
+
+输出 Design Conflict Report；
+
+修正文档；
+
+等待用户确认。
+
+不得自行新增、删除或修改任何索引。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 ---
 
 # 七、API规范

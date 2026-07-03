@@ -9,24 +9,44 @@
 ## 目录
 
 1. [总览](#1-总览)
-2. [阶段 1：项目初始化](#2-阶段-1项目初始化)
-3. [阶段 2：数据库设计](#3-阶段-2数据库设计)
-4. [阶段 3：后端核心框架](#4-阶段-3后端核心框架)
-5. [阶段 4：登录与权限](#5-阶段-4登录与权限)
-6. [阶段 5：客户管理](#6-阶段-5客户管理)
-7. [阶段 6：试磨任务](#7-阶段-6试磨任务)
-8. [阶段 7：收件管理](#8-阶段-7收件管理)
-9. [阶段 8：试磨管理](#9-阶段-8试磨管理)
-10. [阶段 9：检测管理](#10-阶段-9检测管理)
-11. [阶段 10：工件去向](#11-阶段-10工件去向)
-12. [阶段 11：查询统计](#12-阶段-11查询统计)
-13. [阶段 12：操作日志](#13-阶段-12操作日志)
-14. [阶段 13：消息提醒](#14-阶段-13消息提醒)
-15. [阶段 14：系统设置与备份](#15-阶段-14系统设置与备份)
-16. [阶段 15：联调测试](#16-阶段-15联调测试)
-17. [阶段 16：Windows 打包](#17-阶段-16windows-打包)
-18. [阶段 17：微信小程序](#18-阶段-17微信小程序)
-19. [阶段 18：部署上线](#19-阶段-18部署上线)
+2. [Sprint Planning（任务计划）](#sprint-planning)
+   - [Sprint 0：项目初始化](#sprint-0项目初始化)
+   - [Sprint 1：数据库 ORM 模型](#sprint-1数据库-orm-模型)
+   - [Sprint 2：后端核心框架](#sprint-2后端核心框架)
+   - [Sprint 3：认证与权限](#sprint-3认证与权限)
+   - [Sprint 4：客户管理](#sprint-4客户管理)
+   - [Sprint 5：试磨任务](#sprint-5试磨任务)
+   - [Sprint 6：收件管理](#sprint-6收件管理)
+   - [Sprint 7：试磨管理](#sprint-7试磨管理)
+   - [Sprint 8：检测管理](#sprint-8检测管理)
+   - [Sprint 9：工件去向](#sprint-9工件去向)
+   - [Sprint 10：查询统计](#sprint-10查询统计)
+   - [Sprint 11：操作日志](#sprint-11操作日志)
+   - [Sprint 12：消息提醒](#sprint-12消息提醒)
+   - [Sprint 13：系统设置与备份](#sprint-13系统设置与备份)
+   - [Sprint 14：联调测试](#sprint-14联调测试)
+   - [Sprint 15：Windows 打包](#sprint-15windows-打包)
+   - [Sprint 16：微信小程序](#sprint-16微信小程序)
+   - [Sprint 17：部署上线](#sprint-17部署上线)
+3. [Task Catalog（任务目录）](#task-catalog)
+4. [阶段 1：项目初始化](#2-阶段-1项目初始化)
+5. [阶段 2：数据库设计](#3-阶段-2数据库设计)
+6. [阶段 3：后端核心框架](#4-阶段-3后端核心框架)
+7. [阶段 4：登录与权限](#5-阶段-4登录与权限)
+8. [阶段 5：客户管理](#6-阶段-5客户管理)
+9. [阶段 6：试磨任务](#7-阶段-6试磨任务)
+10. [阶段 7：收件管理](#8-阶段-7收件管理)
+11. [阶段 8：试磨管理](#9-阶段-8试磨管理)
+12. [阶段 9：检测管理](#10-阶段-9检测管理)
+13. [阶段 10：工件去向](#11-阶段-10工件去向)
+14. [阶段 11：查询统计](#12-阶段-11查询统计)
+15. [阶段 12：操作日志](#13-阶段-12操作日志)
+16. [阶段 13：消息提醒](#14-阶段-13消息提醒)
+17. [阶段 14：系统设置与备份](#15-阶段-14系统设置与备份)
+18. [阶段 15：联调测试](#16-阶段-15联调测试)
+19. [阶段 16：Windows 打包](#17-阶段-16windows-打包)
+20. [阶段 17：微信小程序](#18-阶段-17微信小程序)
+21. [阶段 18：部署上线](#19-阶段-18部署上线)
 20. [附录：依赖关系图](#附录依赖关系图)
 
 ---
@@ -69,6 +89,583 @@
 | 18 | 部署上线 | 2 | P1 | 阶段16 | 生产环境部署 |
 
 > **总工时估算：约 39.5 人天**（单开发者约 8 周，2 人团队约 4 周）
+
+---
+
+## Sprint Planning
+
+> 本章节为项目总计划，将 18 个阶段映射为 18 个 Sprint，明确每个 Task 的目标、输入、输出、依赖和验收标准。  
+> 每个 Task 完成后必须执行：Code Review → Documentation Sync → Git Commit。
+
+### Sprint 与阶段映射
+
+| Sprint | 阶段 | 名称 | 优先级 | 状态 |
+|:--:|:--:|------|:--:|:--:|
+| 0 | 1 | 项目初始化 | P0 | ✅ 已完成 |
+| 1 | 2 | 数据库 ORM 模型 | P0 | 🔄 进行中 |
+| 2 | 3 | 后端核心框架 | P0 | ⬜ 待开始 |
+| 3 | 4 | 认证与权限 | P0 | ⬜ 待开始 |
+| 4 | 5 | 客户管理 | P1 | ⬜ 待开始 |
+| 5 | 6 | 试磨任务 | P0 | ⬜ 待开始 |
+| 6 | 7 | 收件管理 | P1 | ⬜ 待开始 |
+| 7 | 8 | 试磨管理 | P1 | ⬜ 待开始 |
+| 8 | 9 | 检测管理 | P1 | ⬜ 待开始 |
+| 9 | 10 | 工件去向 | P2 | ⬜ 待开始 |
+| 10 | 11 | 查询统计 | P1 | ⬜ 待开始 |
+| 11 | 12 | 操作日志 | P1 | ⬜ 待开始 |
+| 12 | 13 | 消息提醒 | P2 | ⬜ 待开始 |
+| 13 | 14 | 系统设置与备份 | P2 | ⬜ 待开始 |
+| 14 | 15 | 联调测试 | P0 | ⬜ 待开始 |
+| 15 | 16 | Windows 打包 | P1 | ⬜ 待开始 |
+| 16 | 17 | 微信小程序 | P2 | ⬜ 待开始 |
+| 17 | 18 | 部署上线 | P1 | ⬜ 待开始 |
+
+> **状态说明：** ✅ 已完成 | 🔄 进行中 | ⬜ 待开始
+
+---
+
+### Sprint 0：项目初始化
+
+> 对应阶段 1 | 状态：✅ 已完成 | 完成日期：2026-07-02
+
+| Task | 名称 | 状态 | 参考文档 | 产出物 |
+|:--:|------|:--:|------|------|
+| 0.1 | 项目目录结构 | ✅ | CODE_WIKI §2 | 完整目录树 |
+| 0.2 | Git 仓库初始化 | ✅ | — | `.gitignore` |
+| 0.3 | 依赖配置 | ✅ | CODE_WIKI §4.2 | `requirements.txt` |
+| 0.4 | 虚拟环境 + 安装依赖 | ✅ | — | `venv/` |
+| 0.5 | 服务端配置 | ✅ | — | `server/config.py` |
+| 0.6 | 客户端配置 | ✅ | — | `client/config.py` |
+| 0.7 | 项目说明 | ✅ | — | `README.md` |
+
+**Sprint 0 完成条件：**
+
+- [x] 所有目录存在，含 `.gitkeep`
+- [x] `pip install -r requirements.txt` 成功
+- [x] 配置类包含 DATABASE_URL、SECRET_KEY、UPLOAD_DIR 等
+- [x] Git 仓库初始化完成
+
+---
+
+### Sprint 1：数据库 ORM 模型
+
+> 对应阶段 2 | 状态：🔄 进行中 | 参考：DB_DESIGN.md §3~§6
+
+#### Task 进度
+
+| Task | 名称 | 状态 | 参考文档 | 完成度 |
+|:--:|------|:--:|------|:--:|
+| 1.1 | Database Core | ✅ | DB_DESIGN §4 | 100% |
+| 1.2 | BaseModel | ✅ | DB_DESIGN §4 | 100% |
+| 1.3 | RBAC Models (User, Role, Permission) | ✅ | DB_DESIGN §4.1~§4.2 | 100% |
+| 1.4 | Customer ORM | ✅ | DB_DESIGN §4.3 | 100% |
+| 1.4.1 | TrialTask 状态枚举 | ✅ | SRS §7, DB_DESIGN §4.4 | 100% |
+| 1.5 | TrialTask ORM | ✅ | DB_DESIGN §4.4 | 100% |
+| 1.5.1 | Documentation Sync | ✅ | 全部核心文档 | 100% |
+| 1.6 | Receipt ORM | ⬜ | DB_DESIGN §4.5 | 0% |
+| 1.7 | GrindingRecord ORM | ⬜ | DB_DESIGN §4.6 | 0% |
+| 1.8 | InspectionRecord ORM | ⬜ | DB_DESIGN §4.7 | 0% |
+| 1.9 | Dispatch ORM | ⬜ | DB_DESIGN §4.8 | 0% |
+| 1.10 | Attachment ORM | ⬜ | DB_DESIGN §4.9 | 0% |
+| 1.11 | SystemLog ORM | ⬜ | DB_DESIGN §4.10 | 0% |
+| 1.12 | Notification ORM | ⬜ | DB_DESIGN §4.11 | 0% |
+| 1.13 | 模型统一导出 | ⬜ | — | 0% |
+| 1.14 | 种子数据 | ⬜ | DB_DESIGN §8 | 0% |
+| 1.15 | Alembic 初始化 + 迁移 | ⬜ | DB_DESIGN §9 | 0% |
+
+#### Task 详细规格（待执行 Task）
+
+| Task | 名称 | 输入 | 输出 | 依赖 | 完成标准 |
+|:--:|------|------|------|------|------|
+| 1.6 | Receipt ORM | DB_DESIGN §4.5 | `server/models/receipt.py` + 测试 | Task 1.5 | 通过 Review + Documentation Sync |
+| 1.7 | GrindingRecord ORM | DB_DESIGN §4.6 | `server/models/grinding_record.py` + 测试 | Task 1.6 | 通过 Review + Documentation Sync |
+| 1.8 | InspectionRecord ORM | DB_DESIGN §4.7 | `server/models/inspection_record.py` + 测试 | Task 1.7 | 通过 Review + Documentation Sync |
+| 1.9 | Dispatch ORM | DB_DESIGN §4.8 | `server/models/dispatch.py` + 测试 | Task 1.8 | 通过 Review + Documentation Sync |
+| 1.10 | Attachment ORM | DB_DESIGN §4.9 | `server/models/attachment.py` + FileType 枚举 | Task 1.9 | 通过 Review + Documentation Sync |
+| 1.11 | SystemLog ORM | DB_DESIGN §4.10 | `server/models/system_log.py` + ActionType 枚举 | Task 1.10 | 通过 Review + Documentation Sync |
+| 1.12 | Notification ORM | DB_DESIGN §4.11 | `server/models/notification.py` + NotifyType 枚举 | Task 1.11 | 通过 Review + Documentation Sync |
+| 1.13 | 模型统一导出 | 所有已创建模型 | `server/models/__init__.py` 更新 | Task 1.12 | 所有模型正确导入，无循环引用 |
+| 1.14 | 种子数据 | DB_DESIGN §8 | `database/seed_data.py` | Task 1.13 | 执行后 admin/admin123 可登录 |
+| 1.15 | Alembic 初始化 | 全部 14 张表 | `database/migrations/` + 初始迁移 | Task 1.14 | `alembic upgrade head` 成功 |
+
+**Sprint 1 完成条件：**
+
+- [ ] 全部 14 张表 ORM 模型建立完成
+- [ ] 全部 43 个索引正确建立
+- [ ] 所有枚举值正确（5 种 + 3 种 + 5 种 + 4 种 + 4 种 + 3 种）
+- [ ] 所有外键关系正确建立
+- [ ] Alembic 初始迁移成功执行
+- [ ] 种子数据可正常插入
+- [ ] 全部 Task 通过 Review + Documentation Sync
+- [ ] Git Tag: `v0.1.0-sprint1`
+
+---
+
+### Sprint 2：后端核心框架
+
+> 对应阶段 3 | 状态：⬜ 待开始 | 参考：CODE_WIKI §6
+
+| Task | 名称 | 输入 | 输出 | 依赖 | 完成标准 |
+|:--:|------|------|------|------|------|
+| 2.1 | 自定义异常类 | CODE_WIKI §6.2 | `server/core/exceptions.py` | Sprint 1 | 4 个异常类 |
+| 2.2 | 安全模块 | CODE_WIKI §6.2.1 | `server/core/security.py` | Task 2.1 | JWT + bcrypt + 权限映射 |
+| 2.3 | 依赖注入 | CODE_WIKI §6.2.2 | `server/core/dependencies.py` | Task 2.2 | get_current_user(), require_role() |
+| 2.4 | 任务编号生成器 | CODE_WIKI §6.6.1 | `server/utils/id_generator.py` | Sprint 1 | TM202600001 格式 |
+| 2.5 | 文件处理 | CODE_WIKI §6.6.2 | `server/utils/file_handler.py` | Sprint 1 | 校验、存储、命名 |
+| 2.6 | CORS 中间件 | — | `server/middleware/cors_middleware.py` | — | 跨域配置 |
+| 2.7 | 日志中间件 | CODE_WIKI §6.3.1 | `server/middleware/log_middleware.py` | — | 请求日志 |
+| 2.8 | FastAPI 入口 | CODE_WIKI §6.1 | `server/main.py` | Task 2.1~2.7 | uvicorn 启动成功 |
+| 2.9 | 全局异常处理器 | — | 异常处理注册 | Task 2.1 | 统一格式 `{code, message, detail}` |
+
+**Sprint 2 完成条件：**
+
+- [ ] `uvicorn server.main:app` 启动成功
+- [ ] `http://localhost:8000/docs` 显示 Swagger 文档
+- [ ] 异常处理生效（404/403/400/409 返回统一格式）
+- [ ] CORS 配置正确
+- [ ] Git Tag: `v0.2.0-sprint2`
+
+---
+
+### Sprint 3：认证与权限
+
+> 对应阶段 4 | 状态：⬜ 待开始 | 优先级：P0
+
+| Task | 名称 | 输入 | 输出 | 依赖 | 完成标准 |
+|:--:|------|------|------|------|------|
+| 3.1 | 用户 Schema | SRS §4.1 | `server/schemas/user_schema.py` | Sprint 2 | Pydantic 模型 |
+| 3.2 | Auth Service | SRS §4.1 | `server/services/auth_service.py` | Task 3.1 | login(), change_password() |
+| 3.3 | Auth Router | SRS §4.1 | `server/routers/auth_router.py` | Task 3.2 | POST /api/auth/login 等 |
+| 3.4 | User Service | SRS §4.1 | `server/services/user_service.py` | Task 3.1 | CRUD + 角色分配 |
+| 3.5 | User Router | SRS §4.1 | `server/routers/user_router.py` | Task 3.4 | GET/POST/PUT/DELETE /api/users |
+| 3.6 | Role Router | SRS §4.1 | `server/routers/role_router.py` | Task 3.4 | 角色 CRUD + 权限分配 |
+| 3.7 | API Client (桌面端) | — | `client/services/api_client.py` | Sprint 2 | Bearer Token 注入 |
+| 3.8 | Auth Service (桌面端) | — | `client/services/auth_service.py` | Task 3.7 | login(), get_me() |
+| 3.9 | 登录页 | UI_PROTOTYPE §2 | `client/views/login_view.py` | Task 3.8 | 账号密码登录 |
+| 3.10 | 主窗口框架 | UI_PROTOTYPE §3 | `client/views/main_window.py` | Task 3.9 | 侧边栏 + 标题栏 + 权限过滤 |
+| 3.11 | 应用入口 | — | `client/main.py` | Task 3.10 | 启动桌面端 |
+| 3.12 | 用户管理页 | UI_PROTOTYPE §14 | `client/views/user_manage_view.py` | Task 3.5 | 增删改查 + 启用/禁用 |
+
+**Sprint 3 完成条件：**
+
+- [ ] 正确账号可登录，错误账号被拒绝
+- [ ] 销售不能看到技术员专属菜单
+- [ ] JWT Token 8 小时过期自动跳转
+- [ ] RBAC 权限模型：用户→角色→权限三层关联正确
+- [ ] 20 个权限码全部定义
+- [ ] 无权限操作返回 403
+- [ ] Git Tag: `v0.3.0-sprint3`
+
+---
+
+### Sprint 4：客户管理
+
+> 对应阶段 5 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 4.1 | Customer Schema | SRS §4.2 | `server/schemas/customer_schema.py` | Sprint 3 |
+| 4.2 | Customer Service | SRS §4.2 | `server/services/customer_service.py` | Task 4.1 |
+| 4.3 | Customer Router | SRS §4.2 | `server/routers/customer_router.py` | Task 4.2 |
+| 4.4 | Customer Service (桌面端) | — | `client/services/customer_service.py` | Task 4.3 |
+| 4.5 | Customer View | UI_PROTOTYPE §5 | `client/views/customer_view.py` | Task 4.4 |
+
+**Sprint 4 完成条件：**
+
+- [ ] 列表分页、搜索正常
+- [ ] 新增客户校验：公司名称必填、不重复
+- [ ] 有任务关联的客户删除时提示"无法删除"
+- [ ] Git Tag: `v0.4.0-sprint4`
+
+---
+
+### Sprint 5：试磨任务
+
+> 对应阶段 6 | 状态：⬜ 待开始 | 优先级：P0
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 5.1 | Task Schema | SRS §4.3 | `server/schemas/trial_task_schema.py` | Sprint 4 |
+| 5.2 | Task Service | SRS §4.3 | `server/services/task_service.py` | Task 5.1 |
+| 5.3 | Task Router | SRS §4.3 | `server/routers/trial_task_router.py` | Task 5.2 |
+| 5.4 | Task Service (桌面端) | — | `client/services/task_service.py` | Task 5.3 |
+| 5.5 | StatusBadge 组件 | UI_PROTOTYPE §19 | `client/widgets/status_badge.py` | Sprint 4 |
+| 5.6 | SearchBar 组件 | UI_PROTOTYPE §6.2 | `client/widgets/search_bar.py` | Sprint 4 |
+| 5.7 | 任务列表页 | UI_PROTOTYPE §6 | `client/views/trial_task_view.py` | Task 5.4~5.6 |
+| 5.8 | 任务创建/编辑弹窗 | UI_PROTOTYPE §7 | 表单弹窗 | Task 5.7 |
+| 5.9 | 任务详情页 | UI_PROTOTYPE §8 | `client/views/task_detail_view.py` | Task 5.7 |
+
+**Sprint 5 完成条件：**
+
+- [ ] 任务编号自动生成 TM202600001 格式
+- [ ] 非法状态流转被拒绝
+- [ ] 仅 created 状态可编辑基本信息
+- [ ] 任务详情各区块按状态正确显示/隐藏
+- [ ] Git Tag: `v0.5.0-sprint5`
+
+---
+
+### Sprint 6：收件管理
+
+> 对应阶段 7 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 6.1 | Receipt Schema | SRS §4.4 | `server/schemas/receipt_schema.py` | Sprint 5 |
+| 6.2 | Receipt Service | SRS §4.4 | `server/services/receipt_service.py` | Task 6.1 |
+| 6.3 | Receipt Router | SRS §4.4 | `server/routers/receipt_router.py` | Task 6.2 |
+| 6.4 | Upload Router | — | `server/routers/upload_router.py` | Sprint 5 |
+| 6.5 | Receipt Service (桌面端) | — | `client/services/receipt_service.py` | Task 6.3 |
+| 6.6 | FileUploader 组件 | UI_PROTOTYPE §18.3 | `client/widgets/file_uploader.py` | Sprint 5 |
+| 6.7 | ImageViewer 组件 | UI_PROTOTYPE §18.3 | `client/widgets/image_viewer.py` | Sprint 5 |
+| 6.8 | 收件登记页 | UI_PROTOTYPE §9 | `client/views/receipt_view.py` | Task 6.5~6.7 |
+
+**Sprint 6 完成条件：**
+
+- [ ] 图片上传成功，process_status → received
+- [ ] 图片命名规则：`{task_no}_receipt_{timestamp}.jpg`
+- [ ] 图片类型校验：仅允许 jpg/png
+- [ ] Git Tag: `v0.6.0-sprint6`
+
+---
+
+### Sprint 7：试磨管理
+
+> 对应阶段 8 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 7.1 | Grinding Schema | SRS §4.5 | `server/schemas/grinding_schema.py` | Sprint 6 |
+| 7.2 | Grinding Service | SRS §4.5 | `server/services/grinding_service.py` | Task 7.1 |
+| 7.3 | Grinding Router | SRS §4.5 | `server/routers/grinding_router.py` | Task 7.2 |
+| 7.4 | Grinding Service (桌面端) | — | `client/services/grinding_service.py` | Task 7.3 |
+| 7.5 | 试磨管理页 | UI_PROTOTYPE §10 | `client/views/grinding_view.py` | Task 7.4 |
+
+**Sprint 7 完成条件：**
+
+- [ ] 责任人、机型、参数正确保存
+- [ ] 成功 → result_status=passed；失败 → result_status=failed + failure_reason 必填
+- [ ] 仅 grinding 状态可完成试磨
+- [ ] Git Tag: `v0.7.0-sprint7`
+
+---
+
+### Sprint 8：检测管理
+
+> 对应阶段 9 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 8.1 | Inspection Schema | SRS §4.6 | `server/schemas/inspection_schema.py` | Sprint 7 |
+| 8.2 | Inspection Service | SRS §4.6 | `server/services/inspection_service.py` | Task 8.1 |
+| 8.3 | Inspection Router | SRS §4.6 | `server/routers/inspection_router.py` | Task 8.2 |
+| 8.4 | Inspection Service (桌面端) | — | `client/services/inspection_service.py` | Task 8.3 |
+| 8.5 | 检测报告页 | UI_PROTOTYPE §11 | `client/views/inspection_view.py` | Task 8.4 |
+
+**Sprint 8 完成条件：**
+
+- [ ] 支持 PDF/Word/Excel 上传，≤ 50MB
+- [ ] 合格 → passed；不合格 → failed + failure_reason
+- [ ] Git Tag: `v0.8.0-sprint8`
+
+---
+
+### Sprint 9：工件去向
+
+> 对应阶段 10 | 状态：⬜ 待开始 | 优先级：P2
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 9.1 | Dispatch Schema | SRS §4.7 | `server/schemas/dispatch_schema.py` | Sprint 8 |
+| 9.2 | Dispatch Service | SRS §4.7 | `server/services/dispatch_service.py` | Task 9.1 |
+| 9.3 | Dispatch Router | SRS §4.7 | `server/routers/dispatch_router.py` | Task 9.2 |
+| 9.4 | Dispatch Service (桌面端) | — | `client/services/dispatch_service.py` | Task 9.3 |
+| 9.5 | 工件去向页 | UI_PROTOTYPE §12 | `client/views/dispatch_view.py` | Task 9.4 |
+
+**Sprint 9 完成条件：**
+
+- [ ] 仅 result_status=passed 且 process_status=grinding 时可填写
+- [ ] 填写后 process_status → dispatched，任务结束
+- [ ] Git Tag: `v0.9.0-sprint9`
+
+---
+
+### Sprint 10：查询统计
+
+> 对应阶段 11 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 10.1 | Query Schema | SRS §4.8 | `server/schemas/query_schema.py` | Sprint 5 |
+| 10.2 | Query Service | SRS §4.8 | `server/services/query_service.py` | Task 10.1 |
+| 10.3 | Query Router | SRS §4.8 | `server/routers/query_router.py` | Task 10.2 |
+| 10.4 | Query Service (桌面端) | — | `client/services/query_service.py` | Task 10.3 |
+| 10.5 | 查询统计页 | UI_PROTOTYPE §13 | `client/views/query_view.py` | Task 10.4 |
+
+**Sprint 10 完成条件：**
+
+- [ ] 支持按客户、状态、日期、责任人、机型组合查询
+- [ ] 统计数据：本月/年度数量、成功率、客户排行、机型排行
+- [ ] 支持导出 Excel
+- [ ] Git Tag: `v0.10.0-sprint10`
+
+---
+
+### Sprint 11：操作日志
+
+> 对应阶段 12 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 11.1 | Log Schema | SRS §4.10 | `server/schemas/log_schema.py` | Sprint 5 |
+| 11.2 | Log Service | SRS §4.10 | `server/services/log_service.py` | Task 11.1 |
+| 11.3 | Log Router | SRS §4.10 | `server/routers/log_router.py` | Task 11.2 |
+| 11.4 | 集成到关键 Service | — | 注入 LogService | Task 11.2 |
+| 11.5 | Log Service (桌面端) | — | `client/services/log_service.py` | Task 11.3 |
+| 11.6 | 操作日志页 | UI_PROTOTYPE §15 | `client/views/system_log_view.py` | Task 11.5 |
+
+**Sprint 11 完成条件：**
+
+- [ ] 所有修改操作自动记录
+- [ ] 日志不可删除
+- [ ] 支持按操作人、类型、时间范围筛选
+- [ ] Git Tag: `v0.11.0-sprint11`
+
+---
+
+### Sprint 12：消息提醒
+
+> 对应阶段 13 | 状态：⬜ 待开始 | 优先级：P2
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 12.1 | Notification Schema | SRS §4.9 | `server/schemas/notification_schema.py` | Sprint 7 |
+| 12.2 | Notification Service | SRS §4.9 | `server/services/notification_service.py` | Task 12.1 |
+| 12.3 | Notification Router | SRS §4.9 | `server/routers/notification_router.py` | Task 12.2 |
+| 12.4 | APScheduler 定时任务 | SRS §10.3 | 每小时执行 | Task 12.2 |
+| 12.5 | Notification Service (桌面端) | — | `client/services/notification_service.py` | Task 12.3 |
+| 12.6 | 消息面板集成 | UI_PROTOTYPE §4.3 | Dashboard + 标题栏角标 | Task 12.5 |
+
+**Sprint 12 完成条件：**
+
+- [ ] 超时任务自动生成提醒，不重复生成
+- [ ] 三条规则全部生效
+- [ ] 点击消息 → 标记已读 + 跳转
+- [ ] 用户只能看到自己角色的消息
+- [ ] Git Tag: `v0.12.0-sprint12`
+
+---
+
+### Sprint 13：系统设置与备份
+
+> 对应阶段 14 | 状态：⬜ 待开始 | 优先级：P2
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 13.1 | 自动备份 | CODE_WIKI §6.6.2 | `server/utils/backup.py` | Sprint 2 |
+| 13.2 | 启动备份调度 | — | 在 main.py 中启动 | Task 13.1 |
+| 13.3 | 系统设置页 | UI_PROTOTYPE §16 | `client/views/settings_view.py` | Sprint 2 |
+
+**Sprint 13 完成条件：**
+
+- [ ] 每天自动备份，备份文件可恢复
+- [ ] 设置页各项配置可保存和读取
+- [ ] Git Tag: `v0.13.0-sprint13`
+
+---
+
+### Sprint 14：联调测试
+
+> 对应阶段 15 | 状态：⬜ 待开始 | 优先级：P0
+
+| Task | 名称 | 内容 | 依赖 |
+|:--:|------|------|------|
+| 14.1 | 全流程走查 | 销售创建任务 → 收件 → 试磨 → 检测 → 去向 | Sprint 1~13 |
+| 14.2 | 权限测试 | 每个角色登录，验证菜单和操作权限 | Sprint 3 |
+| 14.3 | 状态流转测试 | 验证所有合法流转 + 非法流转被拒绝 | Sprint 5~9 |
+| 14.4 | 边界测试 | 空表单、超长文本、特殊字符、超时 Token | Sprint 1~13 |
+| 14.5 | 文件上传测试 | 各种类型、大小、非法类型 | Sprint 6~8 |
+| 14.6 | 统计验证 | 手动核对统计数据 | Sprint 10 |
+| 14.7 | 消息提醒测试 | 模拟超时任务 | Sprint 12 |
+| 14.8 | Bug 修复 | 汇总修复所有问题 | Task 14.1~14.7 |
+
+**Sprint 14 完成条件：**
+
+- [ ] AC-01 ~ AC-17 全部通过
+- [ ] BR-01 ~ BR-15 全部满足
+- [ ] 0 个阻断性 Bug
+- [ ] 界面与 UI_PROTOTYPE 一致
+- [ ] Git Tag: `v0.14.0-sprint14`
+
+---
+
+### Sprint 15：Windows 打包
+
+> 对应阶段 16 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 产出 | 依赖 |
+|:--:|------|------|------|
+| 15.1 | PyInstaller spec 文件 | `GTMS.spec` | Sprint 14 |
+| 15.2 | 执行打包 | `dist/GTMS.exe` | Task 15.1 |
+| 15.3 | 打包测试 | 干净环境测试 | Task 15.2 |
+| 15.4 | 资源文件处理 | 图片、图标正常 | Task 15.2 |
+
+**Sprint 15 完成条件：**
+
+- [ ] GTMS.exe 可独立运行（无需 Python）
+- [ ] 所有功能正常
+- [ ] 文件大小 < 200MB
+- [ ] Git Tag: `v0.15.0-sprint15`
+
+---
+
+### Sprint 16：微信小程序
+
+> 对应阶段 17 | 状态：⬜ 待开始 | 优先级：P2
+
+| Task | 名称 | 产出 | 参考 UI |
+|:--:|------|------|------|
+| 16.1 | UniApp 项目初始化 | 项目结构 | — |
+| 16.2 | 登录页 | `pages/login/index` | UI_PROTOTYPE §17.1 |
+| 16.3 | 仪表盘首页 | `pages/dashboard/index` | UI_PROTOTYPE §17.2 |
+| 16.4 | 任务列表 | `pages/task_list/index` | UI_PROTOTYPE §17.3 |
+| 16.5 | 任务详情 | `pages/task_detail/index` | UI_PROTOTYPE §17.4 |
+| 16.6 | 收件登记 | `pages/receipt/index` | UI_PROTOTYPE §17.5 |
+| 16.7 | 统计报表 | `pages/statistics/index` | UI_PROTOTYPE §17.6 |
+| 16.8 | 消息通知 | `pages/notification/index` | UI_PROTOTYPE §17.7 |
+| 16.9 | API 层封装 | `api/` 目录 | — |
+| 16.10 | 底部导航栏 | 首页/任务/统计/我的 | — |
+| 16.11 | 小程序测试 | 全流程 | — |
+
+**Sprint 16 完成条件：**
+
+- [ ] 全部 7 个页面与 UI 原型一致
+- [ ] 登录、查看任务、拍照上传功能正常
+- [ ] 微信开发者工具编译通过
+- [ ] Git Tag: `v0.16.0-sprint16`
+
+---
+
+### Sprint 17：部署上线
+
+> 对应阶段 18 | 状态：⬜ 待开始 | 优先级：P1
+
+| Task | 名称 | 内容 | 依赖 |
+|:--:|------|------|------|
+| 17.1 | 生产环境准备 | MySQL、Python、Nginx | Sprint 15 |
+| 17.2 | 数据库切换 | SQLite → MySQL，DDL + 种子数据 | Task 17.1 |
+| 17.3 | HTTPS 配置 | 域名 + 证书 | Task 17.1 |
+| 17.4 | 后端部署 | systemd / Windows Service | Task 17.2~17.3 |
+| 17.5 | 桌面端分发 | GTMS.exe 分发 | Sprint 15 |
+| 17.6 | 小程序审核 | 微信审核提交 | Sprint 16 |
+| 17.7 | 用户培训 | 各角色操作培训 | Task 17.5~17.6 |
+| 17.8 | 上线监控 | 日志、错误、性能 | Task 17.4 |
+
+**Sprint 17 完成条件：**
+
+- [ ] 后端服务稳定运行
+- [ ] 桌面端可连接生产服务器
+- [ ] 小程序通过审核并上线
+- [ ] 用户可正常使用全部功能
+- [ ] Git Tag: `v1.0.0-release`
+
+---
+
+## Task Catalog
+
+> 全局任务索引，可快速定位每个 Task 的详细信息。  
+> 每个 Task 完成后生成 Prompt 时可直接引用本目录。
+
+### 按 Sprint 索引
+
+| Sprint | Task ID | 名称 | 分类 | 参考文档 | 关键产出 |
+|:--:|:--:|------|------|------|------|
+| 0 | 0.1 | 项目目录结构 | 初始化 | CODE_WIKI §2 | 目录树 |
+| 0 | 0.2 | Git 仓库初始化 | 初始化 | — | `.gitignore` |
+| 0 | 0.3 | 依赖配置 | 初始化 | CODE_WIKI §4.2 | `requirements.txt` |
+| 0 | 0.5 | 服务端配置 | 初始化 | — | `server/config.py` |
+| 1 | 1.1 | Database Core | ORM | DB_DESIGN §4 | `server/database/` |
+| 1 | 1.2 | BaseModel | ORM | DB_DESIGN §4 | `server/models/base_model.py` |
+| 1 | 1.3 | RBAC Models | ORM | DB_DESIGN §4.1~§4.2 | user.py, role.py, permission.py |
+| 1 | 1.4 | Customer ORM | ORM | DB_DESIGN §4.3 | `server/models/customer.py` |
+| 1 | 1.5 | TrialTask ORM | ORM | DB_DESIGN §4.4 | `server/models/trial_task.py` |
+| 1 | 1.6 | Receipt ORM | ORM | DB_DESIGN §4.5 | `server/models/receipt.py` |
+| 1 | 1.7 | GrindingRecord ORM | ORM | DB_DESIGN §4.6 | `server/models/grinding_record.py` |
+| 1 | 1.8 | InspectionRecord ORM | ORM | DB_DESIGN §4.7 | `server/models/inspection_record.py` |
+| 1 | 1.9 | Dispatch ORM | ORM | DB_DESIGN §4.8 | `server/models/dispatch.py` |
+| 1 | 1.10 | Attachment ORM | ORM | DB_DESIGN §4.9 | `server/models/attachment.py` |
+| 1 | 1.11 | SystemLog ORM | ORM | DB_DESIGN §4.10 | `server/models/system_log.py` |
+| 1 | 1.12 | Notification ORM | ORM | DB_DESIGN §4.11 | `server/models/notification.py` |
+| 1 | 1.14 | 种子数据 | 数据 | DB_DESIGN §8 | `database/seed_data.py` |
+| 1 | 1.15 | Alembic 迁移 | 数据 | DB_DESIGN §9 | `database/migrations/` |
+| 2 | 2.1 | 自定义异常类 | 核心 | CODE_WIKI §6.2 | `server/core/exceptions.py` |
+| 2 | 2.2 | 安全模块 | 核心 | CODE_WIKI §6.2.1 | `server/core/security.py` |
+| 2 | 2.3 | 依赖注入 | 核心 | CODE_WIKI §6.2.2 | `server/core/dependencies.py` |
+| 2 | 2.4 | 编号生成器 | 工具 | CODE_WIKI §6.6.1 | `server/utils/id_generator.py` |
+| 2 | 2.5 | 文件处理 | 工具 | CODE_WIKI §6.6.2 | `server/utils/file_handler.py` |
+| 2 | 2.8 | FastAPI 入口 | 入口 | CODE_WIKI §6.1 | `server/main.py` |
+| 3 | 3.1 | 用户 Schema | Schema | SRS §4.1 | `server/schemas/user_schema.py` |
+| 3 | 3.2 | Auth Service | Service | SRS §4.1 | `server/services/auth_service.py` |
+| 3 | 3.3 | Auth Router | Router | SRS §4.1 | `server/routers/auth_router.py` |
+| 3 | 3.9 | 登录页 | UI | UI_PROTOTYPE §2 | `client/views/login_view.py` |
+| 3 | 3.10 | 主窗口框架 | UI | UI_PROTOTYPE §3 | `client/views/main_window.py` |
+| 4 | 4.1 | Customer Schema | Schema | SRS §4.2 | `server/schemas/customer_schema.py` |
+| 4 | 4.2 | Customer Service | Service | SRS §4.2 | `server/services/customer_service.py` |
+| 4 | 4.3 | Customer Router | Router | SRS §4.2 | `server/routers/customer_router.py` |
+| 4 | 4.5 | Customer View | UI | UI_PROTOTYPE §5 | `client/views/customer_view.py` |
+| 5 | 5.1 | Task Schema | Schema | SRS §4.3 | `server/schemas/trial_task_schema.py` |
+| 5 | 5.2 | Task Service | Service | SRS §4.3 | `server/services/task_service.py` |
+| 5 | 5.3 | Task Router | Router | SRS §4.3 | `server/routers/trial_task_router.py` |
+| 5 | 5.7 | 任务列表页 | UI | UI_PROTOTYPE §6 | `client/views/trial_task_view.py` |
+| 5 | 5.9 | 任务详情页 | UI | UI_PROTOTYPE §8 | `client/views/task_detail_view.py` |
+| 6 | 6.1 | Receipt Schema | Schema | SRS §4.4 | `server/schemas/receipt_schema.py` |
+| 6 | 6.2 | Receipt Service | Service | SRS §4.4 | `server/services/receipt_service.py` |
+| 6 | 6.3 | Receipt Router | Router | SRS §4.4 | `server/routers/receipt_router.py` |
+| 6 | 6.8 | 收件登记页 | UI | UI_PROTOTYPE §9 | `client/views/receipt_view.py` |
+| 7 | 7.1 | Grinding Schema | Schema | SRS §4.5 | `server/schemas/grinding_schema.py` |
+| 7 | 7.2 | Grinding Service | Service | SRS §4.5 | `server/services/grinding_service.py` |
+| 7 | 7.3 | Grinding Router | Router | SRS §4.5 | `server/routers/grinding_router.py` |
+| 7 | 7.5 | 试磨管理页 | UI | UI_PROTOTYPE §10 | `client/views/grinding_view.py` |
+| 8 | 8.1 | Inspection Schema | Schema | SRS §4.6 | `server/schemas/inspection_schema.py` |
+| 8 | 8.2 | Inspection Service | Service | SRS §4.6 | `server/services/inspection_service.py` |
+| 8 | 8.3 | Inspection Router | Router | SRS §4.6 | `server/routers/inspection_router.py` |
+| 8 | 8.5 | 检测报告页 | UI | UI_PROTOTYPE §11 | `client/views/inspection_view.py` |
+| 9 | 9.1 | Dispatch Schema | Schema | SRS §4.7 | `server/schemas/dispatch_schema.py` |
+| 9 | 9.2 | Dispatch Service | Service | SRS §4.7 | `server/services/dispatch_service.py` |
+| 9 | 9.3 | Dispatch Router | Router | SRS §4.7 | `server/routers/dispatch_router.py` |
+| 9 | 9.5 | 工件去向页 | UI | UI_PROTOTYPE §12 | `client/views/dispatch_view.py` |
+| 10 | 10.1 | Query Schema | Schema | SRS §4.8 | `server/schemas/query_schema.py` |
+| 10 | 10.2 | Query Service | Service | SRS §4.8 | `server/services/query_service.py` |
+| 10 | 10.3 | Query Router | Router | SRS §4.8 | `server/routers/query_router.py` |
+| 10 | 10.5 | 查询统计页 | UI | UI_PROTOTYPE §13 | `client/views/query_view.py` |
+| 11 | 11.1 | Log Schema | Schema | SRS §4.10 | `server/schemas/log_schema.py` |
+| 11 | 11.2 | Log Service | Service | SRS §4.10 | `server/services/log_service.py` |
+| 11 | 11.3 | Log Router | Router | SRS §4.10 | `server/routers/log_router.py` |
+| 11 | 11.6 | 操作日志页 | UI | UI_PROTOTYPE §15 | `client/views/system_log_view.py` |
+| 12 | 12.1 | Notification Schema | Schema | SRS §4.9 | `server/schemas/notification_schema.py` |
+| 12 | 12.2 | Notification Service | Service | SRS §4.9 | `server/services/notification_service.py` |
+| 12 | 12.3 | Notification Router | Router | SRS §4.9 | `server/routers/notification_router.py` |
+| 13 | 13.1 | 自动备份 | 工具 | CODE_WIKI §6.6.2 | `server/utils/backup.py` |
+| 13 | 13.3 | 系统设置页 | UI | UI_PROTOTYPE §16 | `client/views/settings_view.py` |
+| 14 | 14.1 | 全流程走查 | 测试 | — | — |
+| 14 | 14.2 | 权限测试 | 测试 | — | — |
+| 14 | 14.3 | 状态流转测试 | 测试 | — | — |
+| 15 | 15.2 | Windows 打包 | 部署 | CODE_WIKI §14.4 | `dist/GTMS.exe` |
+| 16 | 16.2~16.8 | 小程序 7 页面 | 小程序 | UI_PROTOTYPE §17 | `miniapp/pages/` |
+| 17 | 17.2 | 数据库切换 | 部署 | — | SQLite → MySQL |
+| 17 | 17.4 | 后端部署 | 部署 | — | 生产环境 |
+
+### 统计
+
+| 指标 | 数值 |
+|------|:--:|
+| Sprint 总数 | 18 |
+| Task 总数 | ~120 |
+| 已完成 Sprint | 1 (Sprint 0) |
+| 进行中 Sprint | 1 (Sprint 1) |
+| 待开始 Sprint | 16 |
+| 已完成 Task | 11 |
+| 当前进度 | ~10% |
 
 ---
 

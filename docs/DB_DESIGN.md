@@ -38,6 +38,7 @@
 6. **状态字段使用枚举约束**
 7. **软删除**：核心业务表使用 `is_deleted` 标记，不物理删除
 8. **审计字段**：所有业务表统一继承 BaseModel 的 created_by 和 updated_by 审计字段
+9. **索引规范（Index Rule）**：§5.1（索引汇总）为整个项目唯一权威索引定义。所有 ORM、DDL、Migration、Review、Roadmap 必须以 §5.1 为准。若 §4.x 单表章节与 §5.1 不一致，视为文档错误，不得按照 §4.x 自行创建额外索引，必须先修正文档再继续开发。
 
 ### 1.3 命名规范
 
@@ -466,6 +467,16 @@ CREATE TABLE notifications (
 
 ## 4. 表结构详述
 
+> **Index Definition Rule**
+>
+> 各表章节中的"索引"行仅用于说明该表涉及的约束类型。
+>
+> 项目唯一权威索引来源为 **§5.1 Index Summary**。
+>
+> ORM、DDL、Migration、Review、自测均必须以 §5.1 为准。
+>
+> 若 §4.x 与 §5.1 不一致，应以 §5.1 为准，并同步修正文档。
+
 ### 4.1 users — 用户表
 
 | # | 字段 | 类型 | 空 | 默认值 | 说明 |
@@ -482,7 +493,7 @@ CREATE TABLE notifications (
 | 10 | created_at | DATETIME | NOT | NOW | 创建时间 |
 | 11 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), UNIQUE(username), INDEX(is_active)
+**索引：** PRIMARY(id), UNIQUE(username)
 
 ### 4.2a roles — 角色表
 
@@ -551,7 +562,7 @@ CREATE TABLE notifications (
 | 9 | created_at | DATETIME | NOT | NOW | 创建时间 |
 | 10 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), INDEX(company_name), INDEX(created_by)
+**索引：** PRIMARY(id), INDEX(company_name)
 
 ### 4.4 trial_tasks — 试磨任务表（核心）
 
@@ -606,7 +617,7 @@ pending → failed
 | 9 | created_at | DATETIME | NOT | NOW | 创建时间 |
 | 10 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), UNIQUE(task_id), INDEX(receiver_id), INDEX(received_at)
+**索引：** PRIMARY(id), UNIQUE(task_id)
 
 ### 4.6 grinding_records — 试磨记录表
 
@@ -647,7 +658,7 @@ pending → failed
 | 11 | created_at | DATETIME | NOT | NOW | 创建时间 |
 | 12 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), UNIQUE(task_id), INDEX(inspector_id), INDEX(result)
+**索引：** PRIMARY(id), UNIQUE(task_id)
 
 ### 4.8 dispatches — 工件去向表
 
@@ -664,7 +675,7 @@ pending → failed
 | 9 | created_at | DATETIME | NOT | NOW | 创建时间 |
 | 10 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), UNIQUE(task_id), INDEX(operator_id), INDEX(dispatch_date)
+**索引：** PRIMARY(id), UNIQUE(task_id)
 
 ### 4.9 attachments — 附件表
 
@@ -683,7 +694,7 @@ pending → failed
 | 11 | created_at | DATETIME | NOT | NOW | 上传时间 |
 | 12 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), INDEX(task_id), INDEX(file_type), INDEX(uploaded_by)
+**索引：** PRIMARY(id), INDEX(task_id), INDEX(file_type)
 
 ### 4.10 system_logs — 系统日志表
 
@@ -702,7 +713,7 @@ pending → failed
 | 11 | created_at | DATETIME | NOT | NOW | 操作时间 |
 | 12 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), INDEX(user_id), INDEX(action), INDEX(target_type), INDEX(target_id), INDEX(created_at)
+**索引：** PRIMARY(id), INDEX(user_id), INDEX(action), INDEX(created_at)
 
 ### 4.11 notifications — 消息提醒表
 
@@ -720,7 +731,7 @@ pending → failed
 | 10 | created_at | DATETIME | NOT | NOW | 创建时间 |
 | 11 | updated_at | DATETIME | NOT | NOW | 更新时间 |
 
-**索引：** PRIMARY(id), INDEX(task_id), INDEX(target_user_id), INDEX(is_read), INDEX(created_at), INDEX(type)
+**索引：** PRIMARY(id), INDEX(target_user_id), INDEX(is_read), INDEX(type)
 
 ---
 

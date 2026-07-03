@@ -39,6 +39,8 @@ from server.models.base_model import BaseModel
 
 if TYPE_CHECKING:
     from server.models.role import Role
+    from server.models.notification import Notification
+    from server.models.system_log import SystemLog
 
 # ============================================================
 # 关联表定义（SQLAlchemy Table 对象，非 ORM 模型）
@@ -140,6 +142,20 @@ class User(BaseModel):
         "Role",
         secondary=user_roles,
         back_populates="users",
+        lazy="selectin",
+    )
+
+    # 消息提醒（一对多）
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        back_populates="target_user",
+        lazy="selectin",
+    )
+
+    # 系统日志（一对多）
+    system_logs: Mapped[list["SystemLog"]] = relationship(
+        "SystemLog",
+        back_populates="user",
         lazy="selectin",
     )
 

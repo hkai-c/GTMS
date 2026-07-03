@@ -49,6 +49,12 @@ from server.enums import (
 if TYPE_CHECKING:
     from server.models.user import User
     from server.models.customer import Customer
+    from server.models.receipt import Receipt
+    from server.models.grinding_record import GrindingRecord
+    from server.models.inspection_record import InspectionRecord
+    from server.models.dispatch import Dispatch
+    from server.models.attachment import Attachment
+    from server.models.notification import Notification
 
 
 class TrialTask(BaseModel):
@@ -73,11 +79,12 @@ class TrialTask(BaseModel):
         关联关系:
             customer  - 所属客户（多对一, back_populates="tasks"）
             sales     - 销售/创建人（多对一）
-            receipt   - 收件记录（一对一, 待 Task 1.6 实现）
-            grinding  - 试磨记录（一对一, 待 Task 1.7 实现）
-            inspection- 检测记录（一对一, 待 Task 1.8 实现）
-            dispatch  - 工件去向（一对一, 待 Task 1.9 实现）
-            attachments- 附件（一对多, 待 Task 1.10 实现）
+            receipt   - 收件记录（一对一, back_populates="task"）
+            grinding  - 试磨记录（一对一, back_populates="task"）
+            inspection- 检测记录（一对一, back_populates="task"）
+            dispatch  - 工件去向（一对一, back_populates="task"）
+            attachments- 附件（一对多, back_populates="task"）
+            notifications- 消息提醒（一对多, back_populates="task"）
     """
 
     __tablename__ = "trial_tasks"
@@ -184,19 +191,55 @@ class TrialTask(BaseModel):
         lazy="selectin",
     )
 
+    # 收件记录（一对一）
+    receipt: Mapped[Optional["Receipt"]] = relationship(
+        "Receipt",
+        back_populates="task",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    # 试磨记录（一对一）
+    grinding: Mapped[Optional["GrindingRecord"]] = relationship(
+        "GrindingRecord",
+        back_populates="task",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    # 检测记录（一对一）
+    inspection: Mapped[Optional["InspectionRecord"]] = relationship(
+        "InspectionRecord",
+        back_populates="task",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    # 工件去向（一对一）
+    dispatch: Mapped[Optional["Dispatch"]] = relationship(
+        "Dispatch",
+        back_populates="task",
+        uselist=False,
+        lazy="selectin",
+    )
+
+    # 附件（一对多）
+    attachments: Mapped[list["Attachment"]] = relationship(
+        "Attachment",
+        back_populates="task",
+        lazy="selectin",
+    )
+
+    # 消息提醒（一对多）
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        back_populates="task",
+        lazy="selectin",
+    )
+
     # ============================================================
-    # TODO: 待后续 Task 补充的关联关系
+    # TODO: 待后续 Task 补充的关联关系（当前无）
     # ============================================================
-    # Task 1.6  (Receipt):
-    #   receipt: Mapped[Optional["Receipt"]] = relationship("Receipt", back_populates="task", uselist=False)
-    # Task 1.7  (GrindingRecord):
-    #   grinding: Mapped[Optional["GrindingRecord"]] = relationship("GrindingRecord", back_populates="task", uselist=False)
-    # Task 1.8  (InspectionRecord):
-    #   inspection: Mapped[Optional["InspectionRecord"]] = relationship("InspectionRecord", back_populates="task", uselist=False)
-    # Task 1.9  (Dispatch):
-    #   dispatch: Mapped[Optional["Dispatch"]] = relationship("Dispatch", back_populates="task", uselist=False)
-    # Task 1.10 (Attachment):
-    #   attachments: Mapped[list["Attachment"]] = relationship("Attachment", back_populates="task")
     #
     # 规则：双向 relationship（back_populates）仅在关联模型已实现时建立。
     # 未实现模型不得创建占位 relationship，应在对应模型开发时同步补充。
