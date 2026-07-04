@@ -153,7 +153,7 @@ data_control/
 │   │   ├── log_service.py         # 日志记录逻辑
 │   │   └── notification_service.py # 消息提醒逻辑
 │   ├── utils/                     # 工具函数
-│   │   ├── id_generator.py        # 任务编号生成器 (TM202600001)
+│   │   ├── id_generator.py        # 任务编号生成器 (YYYYMMDD-N)
 │   │   ├── file_handler.py        # 文件处理
 │   │   └── backup.py              # 自动备份
 │   └── middleware/                 # 中间件
@@ -672,12 +672,49 @@ def require_role(role: str):
 
 #### 6.2.3 `exceptions.py` — 自定义异常
 
-| 异常类 | HTTP 状态码 | 说明 |
-|------|------|------|
-| `NotFoundException` | 404 | 资源不存在 |
-| `PermissionDeniedException` | 403 | 权限不足 |
-| `BusinessLogicException` | 400 | 业务逻辑错误 |
-| `DuplicateException` | 409 | 重复数据 |
+统一异常体系，所有业务异常继承自 `BaseAppException`。
+
+**异常层次结构：**
+
+```
+BaseAppException (Exception)
+├── BusinessLogicException      — 业务逻辑错误 (HTTP 400)
+├── AuthenticationException     — 认证失败 (HTTP 401)
+├── PermissionDeniedException   — 权限不足 (HTTP 403)
+├── NotFoundException           — 资源不存在 (HTTP 404)
+└── DuplicateException          — 重复数据 (HTTP 409)
+```
+
+**异常详情：**
+
+| 异常类 | HTTP 状态码 | 默认 code | 默认 message | 说明 |
+|--------|-------------|-----------|-------------|------|
+| `BaseAppException` | — | — | — | 所有业务异常基类，提供 to_dict() 统一输出 |
+| `BusinessLogicException` | 400 | BUSINESS_ERROR | Business logic error | 参数校验失败、业务规则不满足 |
+| `AuthenticationException` | 401 | AUTHENTICATION_FAILED | Authentication failed | 登录失败、Token 无效 |
+| `PermissionDeniedException` | 403 | PERMISSION_DENIED | Permission denied | 无权限访问资源 |
+| `NotFoundException` | 404 | NOT_FOUND | Resource not found | 查询不到指定资源 |
+| `DuplicateException` | 409 | DUPLICATE_DATA | Duplicate data | 唯一约束冲突 |
+
+**to_dict() 输出格式：**
+
+```json
+{
+    "code": "NOT_FOUND",
+    "message": "用户不存在",
+    "detail": {"user_id": 123}
+}
+```
+
+**使用示例：**
+
+```python
+from server.core.exceptions import NotFoundException
+
+raise NotFoundException("用户不存在", detail={"user_id": 123})
+```
+
+> 注意：所有异常类均为纯 Python Exception，不依赖 FastAPI / HTTPException。后续 Sprint 2.3 将在 FastAPI Exception Handler 中统一转换为 HTTP 响应。
 
 ### 6.3 数据模型层 (models/)
 
@@ -805,7 +842,7 @@ class TaskService:
 
     def create_task(self, data: TaskCreateSchema, user_id: int) -> TrialTask:
         """创建试磨任务
-        1. 生成任务编号 (TM202600001)
+        1. 生成任务编号 (YYYYMMDD-N)
         2. 校验客户是否存在
         3. 创建任务记录
         4. 写入操作日志
@@ -958,35 +995,41 @@ def delete_task(task_id: int, ...):
     ...
 ```
 
-### 6.6 工具模块 (utils/)
+### 6.6 公共工具与业务规则模块 (utils/)
 
 #### 6.6.1 `id_generator.py` — 任务编号生成器
 
 ```python
-from datetime import datetime
+from datetime import date
+from sqlalchemy.orm import Session
 
-class TaskNumberGenerator:
-    """生成格式为 TM202600001 的唯一任务编号"""
+def generate_task_no(db: Session) -> str:
+    """生成格式为 YYYYMMDD-N 的唯一任务编号"""
+    today_str = date.today().strftime("%Y%m%d")
+    prefix = f"{today_str}-"
+    prefix_len = len(prefix)
 
-    @staticmethod
-    def generate(db: Session) -> str:
-        """
-        规则：TM + 年份(4位) + 5位序号(从00001开始)
-        每年序号独立递增，次年重置
-        """
-        year = datetime.now().year
-        # 查询当年最大序号
-        last_task = (
-            db.query(TrialTask)
-            .filter(TrialTask.task_no.like(f"TM{year}%"))
-            .order_by(TrialTask.task_no.desc())
-            .first()
-        )
-        if last_task:
-            seq = int(last_task.task_no[6:]) + 1
-        else:
-            seq = 1
-        return f"TM{year}{seq:05d}"
+    # 查询当天所有 task_no，Python 侧解析流水号取最大值
+    # 避免 ORDER BY task_no 字符串排序导致 "10" < "9" 的问题
+    tasks = (
+        db.query(TrialTask.task_no)
+        .filter(TrialTask.task_no.like(f"{today_str}-%"))
+        .all()
+    )
+
+    if not tasks:
+        return f"{today_str}-1"
+
+    max_seq = 0
+    for (task_no,) in tasks:
+        try:
+            seq = int(task_no[prefix_len:])
+            if seq > max_seq:
+                max_seq = seq
+        except ValueError:
+            pass
+
+    return f"{today_str}-{max_seq + 1}"
 ```
 
 #### 6.6.2 `backup.py` — 自动备份
@@ -1015,6 +1058,57 @@ class AutoBackup:
         dest = f"{self.backup_dir}/gtms_backup_{timestamp}.db"
         shutil.copy2(self.db_path, dest)
 ```
+#### 6.6.3 `task_permission.py` — 阶段负责人规则
+
+GTMS 采用"阶段负责人（Stage Owner）"机制，而不是固定责任人。
+
+不同业务阶段允许由不同技术员完成，每个阶段均记录实际操作人。
+
+##### Stage Owner
+
+| 阶段 | 实际记录方式 | 说明 |
+|------|-------------|------|
+| 收件登记 | Receipt.created_by | 收件登记实际操作人 |
+| 开始试磨 | GrindingRecord.operator_id | 点击"开始试磨"时自动确定试磨负责人 |
+| 完成试磨 | GrindingRecord.operator_id | 与开始试磨责任人保持一致 |
+| 上传检测报告 | InspectionRecord.created_by | 上传检测报告实际操作人 |
+| 工件去向 | Dispatch.created_by | 填写工件去向实际操作人 |
+
+##### Permission Rule
+
+| 操作 | 可执行人员 |
+|------|-----------|
+| 收件登记 | 任意具有 Receipt 权限的技术员 |
+| 开始试磨 | 任意具有 Grinding 权限的技术员 |
+| 完成试磨 | GrindingRecord.operator_id 或 Administrator |
+| 上传检测报告 | 任意具有 Inspection 权限的技术员 |
+| 填写工件去向 | 任意具有 Dispatch 权限的技术员 |
+| 管理员 | 拥有全部阶段权限 |
+
+##### Business Rules
+
+1. 收件登记人员无需成为试磨负责人。
+2. 点击"开始试磨"时，系统自动将当前登录技术员写入 `GrindingRecord.operator_id`。
+3. `GrindingRecord.operator_id` 在试磨结束前不得修改。
+4. 完成试磨仅允许 `GrindingRecord.operator_id` 或 Administrator 执行。
+5. 检测与工件去向允许其他具有对应权限的技术员执行。
+6. 每个阶段均记录实际操作人，用于日志、统计、审计和消息提醒。
+7. 本规则不修改 Sprint 1 已完成 ORM 设计，阶段操作人均使用现有 ORM 字段记录。
+
+##### Notification Rule
+
+| 场景 | 通知对象 |
+|------|----------|
+| Receipt Delay（收件后超时未开始试磨） | 所有具有 Grinding 权限的技术员、任务创建销售（created_by）、Administrator |
+| Grinding Delay（试磨超时未完成） | GrindingRecord.operator_id、任务创建销售（created_by）、Administrator |
+| Inspection Delay（待检测超时） | 所有具有 Inspection 权限的技术员、任务创建销售（created_by）、Administrator |
+
+##### Design Notes
+
+- `GrindingRecord.operator_id` 是试磨负责人唯一标识。
+- 收件人员、检测人员、去向人员均不是试磨负责人。
+- 所有阶段均记录实际操作人，用于操作日志、统计分析和责任追踪。
+- 本规范为 GTMS 全局业务规则，TaskService、ReceiptService、GrindingService、InspectionService、DispatchService、NotificationService 均应遵循本规则。
 
 ---
 
@@ -1365,7 +1459,7 @@ pending → failed（检测不合格，终态）
 ```
 {task_no}_{file_type}_{timestamp}.{ext}
 
-示例: TM202600001_receipt_20260702_143025.jpg
+示例: 20260701-1_receipt_20260702_143025.jpg
 ```
 
 ### 12.3 文件处理流程
@@ -1556,12 +1650,12 @@ chore: 构建/工具
 ## 附录 A：任务编号生成规则
 
 ```
-格式: TM{YYYY}{NNNNN}
+格式: YYYYMMDD-N
 
 示例:
-  TM202600001  — 2026年第1个任务
-  TM202600099  — 2026年第99个任务
-  TM202700001  — 2027年序号重置，第1个任务
+  20260701-1  — 2026年7月1日第1个任务
+  20260701-2  — 2026年7月1日第2个任务
+  20260702-1  — 2026年7月2日第1个任务（跨天重置）
 ```
 
 ## 附录 B：消息提醒定时策略

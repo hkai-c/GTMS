@@ -1,0 +1,104 @@
+"""GTMS FastAPI 应用入口 (Application Entry)
+
+Sprint 2 — Task 2.8
+严格依据 Development Roadmap.md、CODE_WIKI.md §6.1。
+
+启动流程:
+    ① 创建 FastAPI 实例
+    ② 注册 CORS 中间件 (Task 2.6)
+    ③ 注册请求日志中间件 (Task 2.7)
+    ④ 注册全局异常处理器 (Task 2.9 待实现)
+    ⑤ 注册健康检查路由
+
+启动方式:
+    uvicorn server.main:app --reload
+
+访问:
+    http://localhost:8000/docs     — Swagger UI
+    http://localhost:8000/redoc    — ReDoc
+    http://localhost:8000/health   — 健康检查
+"""
+
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+
+from server.core.exception_handlers import register_exception_handlers
+from server.middleware.cors_middleware import setup_cors
+from server.middleware.log_middleware import setup_request_logging
+
+# ============================================================
+# ① 创建 FastAPI 实例
+# ============================================================
+
+app = FastAPI(
+    title="GTMS API",
+    version="0.2.0",
+    description="Grinding Trial Management System API",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
+
+# ============================================================
+# ② 注册 CORS 中间件
+# ============================================================
+
+setup_cors(app)
+
+# ============================================================
+# ③ 注册请求日志中间件
+# ============================================================
+
+setup_request_logging(app)
+
+# ============================================================
+# ④ 注册全局异常处理器
+# ============================================================
+
+register_exception_handlers(app)
+
+# ============================================================
+# ⑤ 健康检查路由
+# ============================================================
+
+
+@app.get("/")
+async def root() -> JSONResponse:
+    """根路由 — 返回 API 基本信息。
+
+    Returns:
+        JSONResponse: 包含 message 和 version 的 JSON 响应。
+    """
+    return JSONResponse(
+        content={
+            "message": "GTMS API Running",
+            "version": "0.2.0",
+        },
+    )
+
+
+@app.get("/health")
+async def health_check() -> JSONResponse:
+    """健康检查路由。
+
+    Returns:
+        JSONResponse: status=ok, HTTP 200。
+    """
+    return JSONResponse(
+        content={"status": "ok"},
+    )
+
+
+# ============================================================
+# 开发模式直接启动
+# ============================================================
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "server.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )
