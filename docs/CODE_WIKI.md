@@ -539,46 +539,58 @@ returned_customer / retained_company / scrapped / returned_sales / other
 ### 6.1 入口文件 `main.py`
 
 ```python
-# FastAPI 应用工厂模式
+# FastAPI 应用入口
+# Sprint 2 已冻结：仅允许新增 register_exception_handlers() 调用和 Router 注册，
+# 不得修改已有代码。
+
 from fastapi import FastAPI
-from server.core.dependencies import engine, Base
-from server.routers import (
-    auth_router, customer_router, trial_task_router,
-    receipt_router, grinding_router, inspection_router,
-    dispatch_router, query_router, user_router,
-    log_router, notification_router, upload_router
-)
-from server.middleware.log_middleware import LogMiddleware
+from fastapi.responses import JSONResponse
+
+from server.core.exception_handlers import register_exception_handlers
 from server.middleware.cors_middleware import setup_cors
+from server.middleware.log_middleware import setup_request_logging
 
-def create_app() -> FastAPI:
-    """应用工厂函数：创建并配置 FastAPI 实例"""
-    app = FastAPI(title="GTMS API", version="1.0.0")
+app = FastAPI(
+    title="GTMS API",
+    version="0.2.0",
+    description="Grinding Trial Management System API",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 
-    # 创建数据库表
-    Base.metadata.create_all(bind=engine)
+# ① 注册 CORS 中间件
+setup_cors(app)
 
-    # 注册中间件
-    setup_cors(app)
-    app.add_middleware(LogMiddleware)
+# ② 注册请求日志中间件
+setup_request_logging(app)
 
-    # 注册路由
-    app.include_router(auth_router.router, prefix="/api/auth", tags=["认证"])
-    app.include_router(customer_router.router, prefix="/api/customers", tags=["客户"])
-    app.include_router(trial_task_router.router, prefix="/api/tasks", tags=["试磨任务"])
-    app.include_router(receipt_router.router, prefix="/api/receipts", tags=["收件"])
-    app.include_router(grinding_router.router, prefix="/api/grinding", tags=["试磨"])
-    app.include_router(inspection_router.router, prefix="/api/inspections", tags=["检测"])
-    app.include_router(dispatch_router.router, prefix="/api/dispatches", tags=["去向"])
-    app.include_router(query_router.router, prefix="/api/query", tags=["查询"])
-    app.include_router(user_router.router, prefix="/api/users", tags=["用户"])
-    app.include_router(log_router.router, prefix="/api/logs", tags=["日志"])
-    app.include_router(notification_router.router, prefix="/api/notifications", tags=["提醒"])
-    app.include_router(upload_router.router, prefix="/api/upload", tags=["上传"])
+# ③ 注册全局异常处理器
+register_exception_handlers(app)
 
-    return app
+# ④ 注册路由（Sprint 3 开始逐步添加）
+# app.include_router(auth_router.router, prefix="/api/auth", tags=["认证"])
+# ...
 
-app = create_app()
+
+@app.get("/")
+async def root() -> JSONResponse:
+    """健康检查 — 根路径"""
+    return JSONResponse(content={
+        "message": "GTMS API Running",
+        "version": "0.2.0",
+    })
+
+
+@app.get("/health")
+async def health_check() -> JSONResponse:
+    """健康检查端点"""
+    return JSONResponse(content={"status": "ok"})
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server.main:app", host="0.0.0.0", port=8000, reload=True)
 ```
 
 ### 6.2 核心模块 (core/)
@@ -586,6 +598,9 @@ app = create_app()
 #### 6.2.1 `security.py` — 认证与权限
 
 ```python
+# Sprint 2 已冻结 API
+# 函数签名不可修改，只能新增调用
+
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -598,79 +613,105 @@ SECRET_KEY = "your-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 小时
 
-class SecurityManager:
-    """安全管理器：负责密码哈希、Token 生成与校验"""
+# 角色权限映射（4 角色 × 20 权限）
+ROLE_PERMISSION_MAP: dict[str, set[str]] = {
+    "administrator": { ... },  # 20 权限
+    "manager":       { ... },  # 14 权限
+    "technician":    { ... },  # 6 权限
+    "viewer":        { ... },  # 3 权限
+}
 
-    @staticmethod
-    def hash_password(password: str) -> str:
-        """对明文密码进行 bcrypt 哈希"""
-        ...
+def hash_password(password: str) -> str:
+    """对明文密码进行 bcrypt 哈希"""
+    ...
 
-    @staticmethod
-    def verify_password(plain: str, hashed: str) -> bool:
-        """验证明文密码与哈希是否匹配"""
-        ...
+def verify_password(plain: str, hashed: str) -> bool:
+    """验证明文密码与哈希是否匹配"""
+    ...
 
-    @staticmethod
-    def create_access_token(data: dict) -> str:
-        """生成 JWT 访问令牌，包含 user_id、role 等"""
-        ...
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """生成 JWT 访问令牌，payload: sub, username, role, iat, exp, type"""
+    ...
 
-    @staticmethod
-    def decode_token(token: str) -> dict:
-        """解析 JWT 令牌，返回 payload"""
-        ...
+def decode_access_token(token: str) -> dict:
+    """解析 JWT 令牌，返回 payload"""
+    ...
 
-class PermissionChecker:
-    """权限检查器 — 基于 RBAC"""
+def has_permission(role: str, permission: str) -> bool:
+    """检查角色是否拥有指定权限"""
+    ...
 
-    @staticmethod
-    def check(user_permissions: list[str], required_permission: str) -> bool:
-        """检查用户是否拥有指定权限（从JWT中提取permissions列表比对）"""
-        ...
+def check_permission(user: User, permission: str) -> None:
+    """检查用户权限，无权限则抛 PermissionDeniedException"""
+    ...
 
-    @staticmethod
-    def has_role(user_roles: list[str], role_name: str) -> bool:
-        """检查用户是否拥有指定角色"""
-        ...
+def is_admin(user: User) -> bool:
+    """检查用户是否为管理员"""
+    ...
+
+def is_manager(user: User) -> bool:
+    """检查用户是否为经理"""
+    ...
+
+def is_technician(user: User) -> bool:
+    """检查用户是否为技术员"""
+    ...
+
+def is_viewer(user: User) -> bool:
+    """检查用户是否为观察者"""
+    ...
 ```
 
 #### 6.2.2 `dependencies.py` — 依赖注入
 
 ```python
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer
-from sqlalchemy.orm import Session
-from server.core.security import SecurityManager
-from server.models.base import get_db
+# Sprint 2 已冻结 API
+# 函数签名不可修改，只能新增调用
 
-security_scheme = HTTPBearer()
+from fastapi import Depends
+from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from server.core.security import decode_access_token
+from server.database import SessionLocal
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI 依赖：获取数据库会话（try-yield-finally 模式）"""
+    ...
 
 def get_current_user(
-    token: str = Depends(security_scheme),
-    db: Session = Depends(get_db)
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
 ) -> User:
     """从 JWT 令牌解析当前用户，注入到路由处理函数"""
     ...
 
+def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """获取当前活跃用户（已启用且未删除）"""
+    ...
+
+def get_optional_user(
+    token: str | None = Depends(oauth2_scheme) or None,
+    db: Session = Depends(get_db),
+) -> User | None:
+    """获取可选用户，Token 不存在时返回 None"""
+    ...
+
 def require_permission(permission: str):
-    """工厂函数：生成指定权限的依赖"""
-    def permission_checker(current_user = Depends(get_current_user)):
-        if permission not in current_user.permissions:
-            raise HTTPException(status_code=403, detail="权限不足")
-        return current_user
-    return permission_checker
+    """工厂函数：生成指定权限的依赖检查器"""
+    ...
 
 def require_role(role: str):
-    """工厂函数：生成指定角色的权限依赖（兼容接口，内部转为权限检查）"""
-    def role_checker(current_user = Depends(get_current_user)):
-        if role not in current_user.roles:
-            raise HTTPException(status_code=403, detail="权限不足")
-        return current_user
-    return role_checker
+    """工厂函数：生成指定角色的依赖检查器"""
+    ...
 ```
 
 #### 6.2.3 `exceptions.py` — 自定义异常
+
+> Sprint 2 已冻结 | 异常类签名不可修改，只能新增调用
 
 统一异常体系，所有业务异常继承自 `BaseAppException`。
 
@@ -714,7 +755,53 @@ from server.core.exceptions import NotFoundException
 raise NotFoundException("用户不存在", detail={"user_id": 123})
 ```
 
-> 注意：所有异常类均为纯 Python Exception，不依赖 FastAPI / HTTPException。后续 Sprint 2.3 将在 FastAPI Exception Handler 中统一转换为 HTTP 响应。
+> 注意：所有异常类均为纯 Python Exception，不依赖 FastAPI / HTTPException。通过 `exception_handlers.py` 统一转换为 HTTP 响应。
+
+#### 6.2.4 `exception_handlers.py` — 全局异常处理器
+
+> Sprint 2 已冻结 | 函数签名不可修改，只能新增调用
+
+将 Task 2.1 异常体系统一转换为 FastAPI JSON 响应。
+
+```python
+# Sprint 2 已冻结 API
+# 仅允许导出: register_exception_handlers(app: FastAPI) -> None
+
+from fastapi import FastAPI
+
+def register_exception_handlers(app: FastAPI) -> None:
+    """在 FastAPI 应用上注册所有全局异常处理器。
+
+    注册顺序:
+        1. BaseAppException 及其子类
+        2. Starlette HTTPException
+        3. RequestValidationError
+        4. 未知 Exception（兜底）
+
+    统一返回格式:
+        {
+            "code": <HTTP状态码>,
+            "message": "<错误信息>",
+            "detail": "<详细说明>"
+        }
+    """
+    ...
+```
+
+**支持异常映射：**
+
+| 异常类型 | HTTP 状态码 | message | detail |
+|------|:--:|------|------|
+| `BusinessLogicException` | 400 | 异常 message | 异常 detail |
+| `AuthenticationException` | 401 | 异常 message | 异常 detail |
+| `PermissionDeniedException` | 403 | 异常 message | 异常 detail |
+| `NotFoundException` | 404 | 异常 message | 异常 detail |
+| `DuplicateException` | 409 | 异常 message | 异常 detail |
+| `HTTPException` | 原 status_code | 原 detail | 空字符串 |
+| `RequestValidationError` | 422 | "请求参数错误" | FastAPI 默认错误 |
+| `Exception` | 500 | "服务器内部错误" | "Internal Server Error" |
+
+> 未知异常使用 `logger.exception()` 记录完整 stack trace，不暴露给客户端。
 
 ### 6.3 数据模型层 (models/)
 
@@ -999,65 +1086,74 @@ def delete_task(task_id: int, ...):
 
 #### 6.6.1 `id_generator.py` — 任务编号生成器
 
+> Sprint 2 已冻结 | 函数签名不可修改
+
 ```python
 from datetime import date
 from sqlalchemy.orm import Session
 
 def generate_task_no(db: Session) -> str:
-    """生成格式为 YYYYMMDD-N 的唯一任务编号"""
-    today_str = date.today().strftime("%Y%m%d")
-    prefix = f"{today_str}-"
-    prefix_len = len(prefix)
+    """生成格式为 YYYYMMDD-N 的唯一任务编号（如 20260704-1）。
+    每日流水号从 1 开始，数据库 LIKE 查询 + Python 侧解析序列号。
+    内置 3 次重试机制应对并发唯一约束冲突。"""
+    ...
 
-    # 查询当天所有 task_no，Python 侧解析流水号取最大值
-    # 避免 ORDER BY task_no 字符串排序导致 "10" < "9" 的问题
-    tasks = (
-        db.query(TrialTask.task_no)
-        .filter(TrialTask.task_no.like(f"{today_str}-%"))
-        .all()
-    )
+#### 6.6.2 `file_handler.py` — 文件处理模块
 
-    if not tasks:
-        return f"{today_str}-1"
-
-    max_seq = 0
-    for (task_no,) in tasks:
-        try:
-            seq = int(task_no[prefix_len:])
-            if seq > max_seq:
-                max_seq = seq
-        except ValueError:
-            pass
-
-    return f"{today_str}-{max_seq + 1}"
-```
-
-#### 6.6.2 `backup.py` — 自动备份
+> Sprint 2 已冻结 | 函数签名不可修改
 
 ```python
-import shutil
-from datetime import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
+# 4 个冻结 API
 
-class AutoBackup:
-    """数据库自动备份"""
+from fastapi import UploadFile
+from server.enums.file_type import FileType
 
-    def __init__(self, db_path: str, backup_dir: str):
-        self.db_path = db_path
-        self.backup_dir = backup_dir
-        self.scheduler = BackgroundScheduler()
+def save_upload_file(
+    file: UploadFile,
+    task_no: str,
+    file_type: FileType,
+    upload_dir: str = "uploads",
+) -> str:
+    """保存上传文件到对应目录，返回文件路径。
+    目录映射: IMAGE→images, VIDEO→videos, DOCUMENT→reports, CAD→files"""
+    ...
 
-    def start(self):
-        """启动定时备份任务（每天凌晨2点）"""
-        self.scheduler.add_job(self._backup, 'cron', hour=2)
-        self.scheduler.start()
+def delete_file(file_path: str) -> bool:
+    """删除指定文件，返回是否成功"""
+    ...
 
-    def _backup(self):
-        """执行备份"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        dest = f"{self.backup_dir}/gtms_backup_{timestamp}.db"
-        shutil.copy2(self.db_path, dest)
+def validate_file(file: UploadFile, file_type: FileType) -> None:
+    """校验文件扩展名、大小、MIME 类型"""
+    ...
+
+def generate_filename(
+    task_no: str,
+    file_type: FileType,
+    original_filename: str,
+) -> str:
+    """生成文件名: {task_no}_{file_type}_{YYYYMMDDHHMMSS}_{uuid}.{ext}"""
+    ...
 ```
+
+**文件命名规则：** `{task_no}_{file_type}_{YYYYMMDDHHMMSS}_{uuid}.{ext}`
+
+**目录映射：**
+
+| FileType | 目录 |
+|------|------|
+| `IMAGE` | `uploads/images/` |
+| `VIDEO` | `uploads/videos/` |
+| `DOCUMENT` | `uploads/reports/` |
+| `CAD` | `uploads/files/` |
+
+**校验规则：**
+
+| 项目 | 限制 |
+|------|------|
+| 扩展名白名单 | IMAGE: jpg/jpeg/png/bmp/gif; VIDEO: mp4/avi/mov; DOCUMENT: pdf/doc/docx/xls/xlsx; CAD: dwg/dxf/stp/step |
+| 大小限制 | IMAGE: 20MB; VIDEO: 200MB; DOCUMENT: 50MB; CAD: 100MB |
+| MIME 校验 | 基于扩展名映射验证 |
+
 #### 6.6.3 `task_permission.py` — 阶段负责人规则
 
 GTMS 采用"阶段负责人（Stage Owner）"机制，而不是固定责任人。
@@ -1111,6 +1207,50 @@ GTMS 采用"阶段负责人（Stage Owner）"机制，而不是固定责任人�
 - 本规范为 GTMS 全局业务规则，TaskService、ReceiptService、GrindingService、InspectionService、DispatchService、NotificationService 均应遵循本规则。
 
 ---
+
+### 6.7 中间件模块 (middleware/)
+
+> Sprint 2 已冻结 | 函数签名不可修改，只能新增调用
+
+#### 6.7.1 `cors_middleware.py` — CORS 跨域中间件
+
+```python
+# Sprint 2 已冻结 API
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+def setup_cors(app: FastAPI) -> None:
+    """配置 FastAPI CORS 中间件。
+
+    allow_origins: localhost, 127.0.0.1, Vue Dev Server, 微信开发者工具, 预留生产域名
+    allow_methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+    allow_headers: Authorization, Content-Type, Accept, Origin, X-Requested-With
+    allow_credentials: True
+    expose_headers: Authorization
+    max_age: 600
+    """
+    ...
+```
+
+#### 6.7.2 `log_middleware.py` — 请求日志中间件
+
+```python
+# Sprint 2 已冻结 API
+
+from fastapi import FastAPI
+
+def setup_request_logging(app: FastAPI) -> None:
+    """注册请求日志中间件。
+
+    使用 @app.middleware("http") 模式。
+    每次请求自动生成 UUID 写入 request.state 和 X-Request-ID 响应头。
+    使用 Python logging，logger 名称 "gtms"，INFO 级别。
+    记录: 请求时间、耗时、method、path、status、IP、user-agent。
+    异常: 记录 ERROR 级别及 stack trace，不吞异常。
+    """
+    ...
+```
 
 ## 7. 桌面客户端模块详解（client/）
 

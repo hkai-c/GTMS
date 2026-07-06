@@ -24,7 +24,7 @@ class ClientConfig:
     # API 服务基础地址
     API_BASE_URL: str = os.getenv(
         "GTMS_API_BASE_URL",
-        "http://localhost:8000/api",
+        "http://localhost:8000",
     )
 
     # HTTP 请求超时（秒）

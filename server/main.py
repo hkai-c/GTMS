@@ -7,8 +7,9 @@ Sprint 2 — Task 2.8
     ① 创建 FastAPI 实例
     ② 注册 CORS 中间件 (Task 2.6)
     ③ 注册请求日志中间件 (Task 2.7)
-    ④ 注册全局异常处理器 (Task 2.9 待实现)
-    ⑤ 注册健康检查路由
+    ④ 注册全局异常处理器 (Task 2.9)
+    ⑤ 注册路由 (Sprint 3)
+    ⑥ 注册健康检查路由
 
 启动方式:
     uvicorn server.main:app --reload
@@ -25,6 +26,9 @@ from fastapi.responses import JSONResponse
 from server.core.exception_handlers import register_exception_handlers
 from server.middleware.cors_middleware import setup_cors
 from server.middleware.log_middleware import setup_request_logging
+from server.routers.auth_router import router as auth_router
+from server.routers.role_router import router as role_router
+from server.routers.user_router import router as user_router
 
 # ============================================================
 # ① 创建 FastAPI 实例
@@ -58,7 +62,15 @@ setup_request_logging(app)
 register_exception_handlers(app)
 
 # ============================================================
-# ⑤ 健康检查路由
+# ⑤ 注册路由
+# ============================================================
+
+app.include_router(auth_router)
+app.include_router(role_router)
+app.include_router(user_router)
+
+# ============================================================
+# ⑥ 健康检查路由
 # ============================================================
 
 

@@ -103,7 +103,7 @@
 |:--:|:--:|------|:--:|:--:|
 | 0 | 1 | 项目初始化 | P0 | ✅ 已完成 |
 | 1 | 2 | 数据库 ORM 模型 | P0 | 🔄 进行中 |
-| 2 | 3 | 后端核心框架 | P0 | ⬜ 待开始 |
+| 2 | 3 | 后端核心框架 | P0 | ✅ 已完成 |
 | 3 | 4 | 认证与权限 | P0 | ⬜ 待开始 |
 | 4 | 5 | 客户管理 | P1 | ⬜ 待开始 |
 | 5 | 6 | 试磨任务 | P0 | ⬜ 待开始 |
@@ -203,42 +203,58 @@
 
 ### Sprint 2：后端核心框架
 
-> 对应阶段 3 | 状态：⬜ 待开始 | 参考：CODE_WIKI §6
+> 对应阶段 3 | 状态：✅ 已完成 | 完成日期：2026-07-04 | 参考：CODE_WIKI §6
 
 | Task | 名称 | 输入 | 输出 | 依赖 | 完成标准 |
 |:--:|------|------|------|------|------|
-| 2.1 | 自定义异常类 | CODE_WIKI §6.2 | `server/core/exceptions.py` | Sprint 1 | 4 个异常类 |
+| 2.1 | 自定义异常类 | CODE_WIKI §6.2 | `server/core/exceptions.py` | Sprint 1 | 5 个异常类 + BaseAppException |
 | 2.2 | 安全模块 | CODE_WIKI §6.2.1 | `server/core/security.py` | Task 2.1 | JWT + bcrypt + 权限映射 |
-| 2.3 | 依赖注入 | CODE_WIKI §6.2.2 | `server/core/dependencies.py` | Task 2.2 | get_current_user(), require_role() |
-| 2.4 | 任务编号生成器 | CODE_WIKI §6.6.1 | `server/utils/id_generator.py` | Sprint 1 | TM202600001 格式 |
+| 2.3 | 依赖注入 | CODE_WIKI §6.2.2 | `server/core/dependencies.py` | Task 2.2 | get_current_user(), require_role(), require_permission() |
+| 2.4 | 任务编号生成器 | CODE_WIKI §6.6.1 | `server/utils/id_generator.py` | Sprint 1 | YYYYMMDD-N 格式 |
 | 2.5 | 文件处理 | CODE_WIKI §6.6.2 | `server/utils/file_handler.py` | Sprint 1 | 校验、存储、命名 |
 | 2.6 | CORS 中间件 | — | `server/middleware/cors_middleware.py` | — | 跨域配置 |
 | 2.7 | 日志中间件 | CODE_WIKI §6.3.1 | `server/middleware/log_middleware.py` | — | 请求日志 |
 | 2.8 | FastAPI 入口 | CODE_WIKI §6.1 | `server/main.py` | Task 2.1~2.7 | uvicorn 启动成功 |
-| 2.9 | 全局异常处理器 | — | 异常处理注册 | Task 2.1 | 统一格式 `{code, message, detail}` |
+| 2.9 | 全局异常处理器 | — | `server/core/exception_handlers.py` | Task 2.1 | 统一格式 `{code, message, detail}` |
 
 **Sprint 2 完成条件：**
 
-- [ ] `uvicorn server.main:app` 启动成功
-- [ ] `http://localhost:8000/docs` 显示 Swagger 文档
-- [ ] 异常处理生效（404/403/400/409 返回统一格式）
-- [ ] CORS 配置正确
-- [ ] Git Tag: `v0.2.0-sprint2`
+- [x] `uvicorn server.main:app` 启动成功
+- [x] `http://localhost:8000/docs` 显示 Swagger 文档
+- [x] 异常处理生效（404/403/400/409/401/422/500 返回统一格式）
+- [x] CORS 配置正确
+- [x] Git Tag: `v0.2.0-sprint2`
+
+**Sprint 2 已冻结 API（Sprint 3 及以后不得修改函数签名，只能新增调用）：**
+
+| 冻结模块 | 冻结 API |
+|------|------|
+| `server/core/exceptions.py` | `BaseAppException`, `BusinessLogicException`, `AuthenticationException`, `PermissionDeniedException`, `NotFoundException`, `DuplicateException` |
+| `server/core/security.py` | `hash_password`, `verify_password`, `create_access_token`, `decode_access_token`, `ROLE_PERMISSION_MAP`, `has_permission`, `check_permission`, `is_admin`, `is_manager`, `is_technician`, `is_viewer` |
+| `server/core/dependencies.py` | `get_db`, `oauth2_scheme`, `get_current_user`, `get_current_active_user`, `get_optional_user`, `require_role`, `require_permission` |
+| `server/utils/id_generator.py` | `generate_task_no(db)` |
+| `server/utils/file_handler.py` | `save_upload_file`, `delete_file`, `validate_file`, `generate_filename` |
+| `server/middleware/cors_middleware.py` | `setup_cors(app)` |
+| `server/middleware/log_middleware.py` | `setup_request_logging(app)` |
+| `server/core/exception_handlers.py` | `register_exception_handlers(app)` |
+| `server/main.py` | `app` 实例 |
 
 ---
 
 ### Sprint 3：认证与权限
 
-> 对应阶段 4 | 状态：⬜ 待开始 | 优先级：P0
+> 对应阶段 4 | 状态：⬜ 待开始 | 优先级：P0  
+> **说明：角色与权限采用 Sprint 2 已冻结的 ROLE_PERMISSION_MAP 静态映射，不新增 Role / Permission ORM，不新增数据库表。Role Router 仅提供角色及权限信息查询接口。**
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 | 完成标准 |
 |:--:|------|------|------|------|------|
-| 3.1 | 用户 Schema | SRS §4.1 | `server/schemas/user_schema.py` | Sprint 2 | Pydantic 模型 |
+| 3.1 | 用户/角色 Schema | SRS §4.1 | server/schemas/ | Sprint 2 | user_schema.py、role_schema.py |
 | 3.2 | Auth Service | SRS §4.1 | `server/services/auth_service.py` | Task 3.1 | login(), change_password() |
 | 3.3 | Auth Router | SRS §4.1 | `server/routers/auth_router.py` | Task 3.2 | POST /api/auth/login 等 |
 | 3.4 | User Service | SRS §4.1 | `server/services/user_service.py` | Task 3.1 | CRUD + 角色分配 |
 | 3.5 | User Router | SRS §4.1 | `server/routers/user_router.py` | Task 3.4 | GET/POST/PUT/DELETE /api/users |
-| 3.6 | Role Router | SRS §4.1 | `server/routers/role_router.py` | Task 3.4 | 角色 CRUD + 权限分配 |
+| 3.6 | Role Router | SRS §4.1 | server/routers/role_router.py | Task 3.4 | 角色信息查询 + 权限映射（读取 ROLE_PERMISSION_MAP） |
 | 3.7 | API Client (桌面端) | — | `client/services/api_client.py` | Sprint 2 | Bearer Token 注入 |
 | 3.8 | Auth Service (桌面端) | — | `client/services/auth_service.py` | Task 3.7 | login(), get_me() |
 | 3.9 | 登录页 | UI_PROTOTYPE §2 | `client/views/login_view.py` | Task 3.8 | 账号密码登录 |
@@ -251,7 +267,7 @@
 - [ ] 正确账号可登录，错误账号被拒绝
 - [ ] 销售不能看到技术员专属菜单
 - [ ] JWT Token 8 小时过期自动跳转
-- [ ] RBAC 权限模型：用户→角色→权限三层关联正确
+- [ ] RBAC 权限模型：用户→角色→权限映射（ROLE_PERMISSION_MAP）正确
 - [ ] 20 个权限码全部定义
 - [ ] 无权限操作返回 403
 - [ ] Git Tag: `v0.3.0-sprint3`
@@ -260,7 +276,8 @@
 
 ### Sprint 4：客户管理
 
-> 对应阶段 5 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 5 | 状态：⬜ 待开始 | 优先级：P1  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
@@ -281,7 +298,8 @@
 
 ### Sprint 5：试磨任务
 
-> 对应阶段 6 | 状态：⬜ 待开始 | 优先级：P0
+> 对应阶段 6 | 状态：⬜ 待开始 | 优先级：P0  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
@@ -307,7 +325,8 @@
 
 ### Sprint 6：收件管理
 
-> 对应阶段 7 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 7 | 状态：⬜ 待开始 | 优先级：P1  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
@@ -331,7 +350,8 @@
 
 ### Sprint 7：试磨管理
 
-> 对应阶段 8 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 8 | 状态：⬜ 待开始 | 优先级：P1  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
@@ -352,7 +372,8 @@
 
 ### Sprint 8：检测管理
 
-> 对应阶段 9 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 9 | 状态：⬜ 待开始 | 优先级：P1  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
@@ -372,7 +393,8 @@
 
 ### Sprint 9：工件去向
 
-> 对应阶段 10 | 状态：⬜ 待开始 | 优先级：P2
+> 对应阶段 10 | 状态：⬜ 待开始 | 优先级：P2  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
@@ -392,7 +414,8 @@
 
 ### Sprint 10：查询统计
 
-> 对应阶段 11 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 11 | 状态：⬜ 待开始 | 优先级：P1  
+> **约束：Sprint 2 已冻结 API 不得修改函数签名，只能新增调用。**
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
