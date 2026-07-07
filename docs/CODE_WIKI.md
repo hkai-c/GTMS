@@ -916,6 +916,60 @@ class TrialTask(BaseModel):
     # Task 1.10 (Attachment): attachments
 ```
 
+### 6.3a 数据校验层 (schemas/) — 客户管理
+
+> Sprint 4 已冻结 | 使用 Pydantic v2 ConfigDict(from_attributes=True)
+
+#### 6.3a.1 `customer_schema.py` — 客户 Schema
+
+```python
+# 5 个 Schema 类，全部使用 Pydantic v2
+
+class CustomerBase(BaseModel):
+    """客户公共字段（company_name 必填，其余可选）"""
+    company_name: str        # 必填，min_length=1, max_length=200
+    contact_person: Optional[str]  # 联系人（映射 ORM contact 列）
+    phone: Optional[str]
+    email: Optional[str]     # 预留字段
+    address: Optional[str]
+    remark: Optional[str]    # 预留字段
+
+class CustomerCreate(CustomerBase):
+    """创建客户 — 继承 CustomerBase，company_name 必填"""
+    pass
+
+class CustomerUpdate(BaseModel):
+    """更新客户 — 所有字段均为可选，仅更新传入的非 None 字段"""
+    company_name: Optional[str]
+    contact_person: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    address: Optional[str]
+    remark: Optional[str]
+
+class CustomerResponse(BaseModel):
+    """客户响应 — 含 id、created_at、updated_at，不含 created_by/is_deleted"""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    company_name: str
+    contact_person: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    address: Optional[str]
+    remark: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+class CustomerListResponse(BaseModel):
+    """客户列表响应 — 分页"""
+    items: list[CustomerResponse]
+    total: int
+```
+
+> 注意：email 和 remark 为预留字段（ORM 中暂无对应列），始终返回 None。
+
+---
+
 ### 6.4 业务逻辑层 (services/)
 
 #### 6.4.1 `task_service.py` — 试磨任务服务（核心）
@@ -1025,6 +1079,64 @@ class LogService:
         ...
 ```
 
+#### 6.4.4 `customer_service.py` — 客户服务
+
+> Sprint 4 已冻结 | Customer 不提供删除功能。
+
+```python
+class CustomerService:
+    """客户业务逻辑"""
+
+    def list_customers(
+        self, db, *,
+        company_name: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> CustomerListResponse:
+        """客户列表查询（分页 + 模糊搜索 + 排序）
+        支持按 company_name 模糊搜索（LIKE %xxx%），按 company_name 升序排列。
+        """
+        ...
+
+    def get_customer(self, db, customer_id: int) -> CustomerResponse:
+        """根据 ID 查询客户（过滤 is_deleted=False）
+        Raises: NotFoundException (客户不存在)
+        """
+        ...
+
+    def create_customer(
+        self, db, data: CustomerCreate, operator_id: int
+    ) -> CustomerResponse:
+        """创建客户
+        流程:
+          ① 自动 strip company_name
+          ② 检查 company_name 全库唯一 → BusinessLogicException
+          ③ 创建 Customer ORM
+          ④ 提交事务
+          ⑤ 写入 SystemLog（Customer Created）
+        """
+        ...
+
+    def update_customer(
+        self, db, customer_id: int,
+        data: CustomerUpdate, operator_id: int,
+    ) -> CustomerResponse:
+        """更新客户（仅更新非 None 字段，exclude_unset）
+        Raises: NotFoundException | BusinessLogicException
+        """
+        ...
+```
+
+**业务规则：**
+- `company_name` 必填（Pydantic 校验）
+- `company_name` 全库唯一（Create 和 Update 均检查，Update 排除自身）
+- `company_name` 自动 strip() 去首尾空格
+- 所有写操作记录 SystemLog
+- 事务管理：commit 成功 / rollback 失败
+- **不提供 delete_customer() 方法**
+
+---
+
 ### 6.5 路由层 (routers/)
 
 #### 6.5.1 标准CRUD路由示例 — `trial_task_router.py`
@@ -1081,6 +1193,70 @@ def delete_task(task_id: int, ...):
     """删除任务"""
     ...
 ```
+
+#### 6.5.2 `customer_router.py` — 客户路由
+
+> Sprint 4 已冻结 | Customer 不提供 DELETE 接口。
+
+```python
+router = APIRouter(prefix="/api/customers", tags=["Customer"])
+
+# GET /api/customers — 客户列表（分页+搜索）
+@router.get("", response_model=CustomerListResponse)
+def list_customers(
+    company_name: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    _: None = Depends(require_permission("customer:view")),
+) -> CustomerListResponse: ...
+
+# GET /api/customers/{customer_id} — 客户详情
+@router.get("/{customer_id}", response_model=CustomerResponse)
+def get_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    _: None = Depends(require_permission("customer:view")),
+) -> CustomerResponse: ...
+
+# POST /api/customers — 创建客户
+@router.post("", response_model=CustomerResponse, status_code=201)
+def create_customer(
+    data: CustomerCreate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    _: None = Depends(require_permission("customer:create")),
+) -> CustomerResponse: ...
+
+# PUT /api/customers/{customer_id} — 修改客户
+@router.put("/{customer_id}", response_model=CustomerResponse)
+def update_customer(
+    customer_id: int,
+    data: CustomerUpdate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    _: None = Depends(require_permission("customer:edit")),
+) -> CustomerResponse: ...
+```
+
+**权限映射：**
+| 接口 | 权限码 |
+|------|--------|
+| GET /api/customers | `customer:view` |
+| GET /api/customers/{id} | `customer:view` |
+| POST /api/customers | `customer:create` |
+| PUT /api/customers/{id} | `customer:edit` |
+
+> 注意：不存在 `customer:delete` 权限，不提供 DELETE 接口。
+
+**路由规范：**
+- Router 不实现任何业务逻辑，全部委托给 CustomerService
+- Router 不捕获业务异常，全部交由全局异常处理器统一处理
+- Router 不使用 try/except、HTTPException、JWT、ORM
+
+---
 
 ### 6.6 公共工具与业务规则模块 (utils/)
 
@@ -1287,7 +1463,7 @@ if __name__ == "__main__":
 | `login_view.py` | `LoginView` | 用户登录对话框，验证账号密码 |
 | `main_window.py` | `MainWindow` | 主窗口框架，含侧边栏导航、顶部工具栏 |
 | `dashboard_view.py` | `DashboardView` | 首页仪表盘：今日任务数、完成率、消息提醒列表 |
-| `customer_view.py` | `CustomerView` | 客户增删改查、列表展示 |
+| `customer_view.py` | `CustomerView` | 客户新增、修改、查询、列表展示 |
 | `trial_task_view.py` | `TrialTaskView` | 试磨任务创建/编辑/详情，含状态流转按钮 |
 | `receipt_view.py` | `ReceiptView` | 收件登记：日期、图片上传 |
 | `grinding_view.py` | `GrindingView` | 试磨表单：责任人、机型、砂轮、参数、图片 |
@@ -1304,6 +1480,74 @@ if __name__ == "__main__":
 - 界面只负责：布局、数据绑定、事件绑定
 - **不允许在界面代码中写业务逻辑**
 - 所有数据操作通过 `client/services/` 调用 API
+
+#### 7.2.3 `customer_view.py` — 客户管理页面
+
+> Sprint 4 已冻结 | 不提供删除功能。
+
+```python
+class CustomerView(QWidget):
+    """客户管理页面 — 分页 + 搜索 + 新增/编辑"""
+
+    customer_changed = Signal()  # 客户信息变更信号
+
+    def __init__(self, customer_service: CustomerService, parent=None):
+        ...
+
+    def refresh(self) -> None:
+        """刷新客户列表，从服务器重新加载数据"""
+        ...
+
+    # 工具栏：新增客户、编辑客户、刷新、搜索
+    # 表格：NoEditTriggers, SingleSelection, AlternatingRowColors, Stretch
+    # 分页：第一页、上一页、下一页、最后一页
+    # 搜索：按 company_name 模糊搜索
+```
+
+**UI 特性：**
+- 表格：不可编辑（NoEditTriggers）、单选（SingleSelection）、交替行颜色（AlternatingRowColors）、自适应列宽（Stretch）
+- 分页：第一页 / 上一页 / 下一页 / 最后一页，显示"第 X / Y 页 共 Z 条记录"
+- 搜索：按公司名称模糊搜索，搜索后重置到第一页
+- 工具栏：新增客户、编辑客户、刷新、搜索框
+- **无删除按钮**
+
+#### 7.2.4 `customer_edit_dialog.py` — 客户编辑对话框
+
+> Sprint 4 已冻结 | 支持新增和编辑两种模式。
+
+```python
+class CustomerEditDialog(QDialog):
+    """客户新增/编辑对话框"""
+
+    def __init__(
+        self,
+        customer_service: CustomerService,
+        mode: str = "create",          # "create" 或 "edit"
+        customer_id: int | None = None, # 编辑模式下的客户 ID
+        customer_data: dict | None = None,  # 编辑模式下的预填数据
+        parent=None,
+    ):
+        ...
+
+    def get_result(self) -> dict | None:
+        """获取操作结果，None 表示取消"""
+        ...
+```
+
+**表单字段：**
+- 公司名称（必填）
+- 联系人（可选）
+- 电话（可选）
+- 邮箱（可选）
+- 地址（可选）
+- 备注（可选）
+
+**模式说明：**
+- 新增模式：空白表单，提交后调用 `CustomerService.create_customer()`
+- 编辑模式：预填已有数据，提交后调用 `CustomerService.update_customer()`
+- 客户端不校验数据合法性，全部由 Server CustomerService 负责
+
+---
 
 ### 7.3 服务层 (services/)
 
@@ -1344,6 +1588,65 @@ class ApiClient:
         """DELETE 请求"""
         ...
 ```
+
+#### 7.3.2 `customer_service.py` — 桌面端客户服务
+
+> Sprint 4 已冻结 | 仅负责 HTTP 封装，不实现业务逻辑。
+
+```python
+class CustomerService:
+    """桌面端客户管理 HTTP 请求封装"""
+
+    def __init__(self, api_client: ApiClient):
+        """存储 ApiClient 引用"""
+        ...
+
+    def list_customers(
+        self,
+        company_name: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """GET /api/customers — 客户列表（分页+搜索）"""
+        ...
+
+    def get_customer(self, customer_id: int) -> dict[str, Any]:
+        """GET /api/customers/{customer_id} — 客户详情"""
+        ...
+
+    def create_customer(
+        self,
+        company_name: str,
+        contact_person: str | None = None,
+        phone: str | None = None,
+        email: str | None = None,
+        address: str | None = None,
+        remark: str | None = None,
+    ) -> dict[str, Any]:
+        """POST /api/customers — 创建客户"""
+        ...
+
+    def update_customer(
+        self,
+        customer_id: int,
+        company_name: str | None = None,
+        contact_person: str | None = None,
+        phone: str | None = None,
+        email: str | None = None,
+        address: str | None = None,
+        remark: str | None = None,
+    ) -> dict[str, Any]:
+        """PUT /api/customers/{customer_id} — 修改客户（仅提交非 None 字段）"""
+        ...
+```
+
+**职责界定：**
+- 仅封装 HTTP 请求（URL、Query、Body）
+- 将服务器返回的 JSON 原样返回
+- 将服务器异常原样抛出
+- 不实现任何业务规则、数据校验、缓存
+
+---
 
 ### 7.4 可复用组件 (widgets/)
 
@@ -1390,13 +1693,14 @@ class ApiClient:
 
 ### 9.2 客户管理
 
+> Sprint 4 已冻结 | Customer 永久保留，不提供删除功能。
+
 | 方法 | 路径 | 说明 | 权限 |
 |------|------|------|------|
-| GET | `/api/customers` | 客户列表（分页+搜索） | 登录用户 |
-| POST | `/api/customers` | 新增客户 | 销售 / 管理员 |
-| GET | `/api/customers/{id}` | 客户详情 | 登录用户 |
-| PUT | `/api/customers/{id}` | 更新客户 | 销售 / 管理员 |
-| DELETE | `/api/customers/{id}` | 删除客户 | 管理员 |
+| GET | `/api/customers` | 客户列表（分页+搜索） | customer:view |
+| POST | `/api/customers` | 新增客户 | customer:create |
+| GET | `/api/customers/{id}` | 客户详情 | customer:view |
+| PUT | `/api/customers/{id}` | 更新客户 | customer:edit |
 
 ### 9.3 试磨任务
 
@@ -1626,7 +1930,7 @@ pending → failed（检测不合格，终态）
 | 技术员 | technician | 9 | 操作类权限 |
 | 领导 | leader | 5 | 查看类权限 |
 
-### 13.3 权限清单（20项）
+### 13.3 权限清单（19项）
 
 | 权限码 | 名称 | 模块 |
 |------|------|------|
@@ -1637,7 +1941,6 @@ pending → failed（检测不合格，终态）
 | customer:create | 创建客户 | customer |
 | customer:view | 查看客户 | customer |
 | customer:edit | 编辑客户 | customer |
-| customer:delete | 删除客户 | customer |
 | receipt:create | 收件登记 | receipt |
 | grinding:start | 开始试磨 | grinding |
 | grinding:complete | 完成试磨 | grinding |
@@ -1823,5 +2126,33 @@ chore: 构建/工具
 ---
 
 > **文档维护者：** GTMS 开发团队  
-> **最后更新：** 2026-07-02  
+> **最后更新：** 2026-07-07  
 > **对应版本：** V1.0
+
+---
+
+## 附录 D：Sprint 4 Frozen API
+
+> **Sprint 4 起公开 API 冻结。后续 Sprint 不得修改以下函数签名，只能新增调用。**
+
+### Server 层
+
+| 文件 | 冻结范围 |
+|------|----------|
+| `server/schemas/customer_schema.py` | `CustomerBase`, `CustomerCreate`, `CustomerUpdate`, `CustomerResponse`, `CustomerListResponse` — 字段与类型不可修改 |
+| `server/services/customer_service.py` | `CustomerService.list_customers()`, `get_customer()`, `create_customer()`, `update_customer()` — 函数签名不可修改 |
+| `server/routers/customer_router.py` | `GET/POST/PUT /api/customers` — 路由路径、Query 参数、Body Schema 不可修改 |
+
+### Desktop 层
+
+| 文件 | 冻结范围 |
+|------|----------|
+| `client/services/customer_service.py` | `CustomerService.list_customers()`, `get_customer()`, `create_customer()`, `update_customer()` — 函数签名不可修改 |
+| `client/views/customer_view.py` | `CustomerView.refresh()`, `customer_changed` Signal — 公开 API 不可修改 |
+| `client/views/customer_edit_dialog.py` | `CustomerEditDialog.get_result()` — 公开 API 不可修改 |
+
+### 冻结约束
+
+- **禁止修改**：已冻结的函数签名、字段名、字段类型、路由路径、Query 参数、Body Schema
+- **允许新增**：内部私有方法、日志输出、新增调用已冻结 API
+- **禁止删除**：Customer 不提供 DELETE 接口，不提供 `customer:delete` 权限

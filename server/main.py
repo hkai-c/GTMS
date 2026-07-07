@@ -27,6 +27,7 @@ from server.core.exception_handlers import register_exception_handlers
 from server.middleware.cors_middleware import setup_cors
 from server.middleware.log_middleware import setup_request_logging
 from server.routers.auth_router import router as auth_router
+from server.routers.customer_router import router as customer_router
 from server.routers.role_router import router as role_router
 from server.routers.user_router import router as user_router
 
@@ -66,6 +67,7 @@ register_exception_handlers(app)
 # ============================================================
 
 app.include_router(auth_router)
+app.include_router(customer_router)
 app.include_router(role_router)
 app.include_router(user_router)
 
