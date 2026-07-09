@@ -1,109 +1,52 @@
 """试磨任务业务层 (Task Service)
 
-Sprint 2 — Task 2.5
-严格依据 DB_DESIGN.md、SRS.md、CODE_WIKI.md。
+Sprint 5 — Task 5.2
+严格依据 SRS §4.3、TrialTask ORM、TrialTask Schema (Task 5.1)、Sprint 2 Frozen API。
 
 提供 TrialTask 的完整 CRUD 业务逻辑，包括：
-    - 创建任务（自动生成编号）
-    - 查询任务（分页、筛选）
-    - 更新任务（仅 CREATED 状态可编辑）
-    - 删除任务（软删除，需管理员权限）
-    - 所有操作自动记录 SystemLog
+    - 创建任务（自动生成编号、校验客户与销售存在）
+    - 查询任务（分页、多条件筛选、排序）
+    - 更新任务（仅 CREATED 状态可编辑基本信息）
+    - 删除任务（软删除）
+    - 状态流转校验（使用枚举 next_statuses）
+    - 所有写操作自动记录 SystemLog
 
-异常体系：
-    使用 Task 2.1 冻结的异常类：
-    - BusinessLogicException (400) — 替代 ValidationException
-    - PermissionDeniedException (403) — 替代 AuthorizationException
-    - NotFoundException (404)
-    - DuplicateException (409) — 替代 ConflictException
+公开 API:
+    - list_tasks(db, *, task_no, customer_id, process_status, result_status, sales_id, page, page_size) -> TrialTaskListResponse
+    - get_task(db, task_id) -> TrialTaskResponse
+    - create_task(db, data, operator_id) -> TrialTaskResponse
+    - update_task(db, task_id, data, operator_id) -> TrialTaskResponse
+    - delete_task(db, task_id, operator_id) -> None
 
 使用方式:
-    from server.services import TaskService
+    from server.services.task_service import TaskService
 
     service = TaskService()
-    task = service.create_task(db, current_user, data)
+    result = service.list_tasks(db, process_status=TrialTaskProcessStatus.CREATED)
 """
 
 import logging
-from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any, Optional
+from typing import Optional
 
-from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from server.core.exceptions import (
     BusinessLogicException,
     NotFoundException,
-    PermissionDeniedException,
 )
-from server.enums import (
-    ActionType,
-    TrialTaskProcessStatus,
-    TrialTaskResultStatus,
-)
+from server.enums.action_type import ActionType
+from server.enums.task_process_status import TrialTaskProcessStatus
+from server.enums.task_result_status import TrialTaskResultStatus
 from server.models import Customer, SystemLog, TrialTask, User
+from server.schemas.trial_task_schema import (
+    TrialTaskCreate,
+    TrialTaskUpdate,
+    TrialTaskResponse,
+    TrialTaskListResponse,
+)
 from server.utils.id_generator import generate_task_no
 
-logger = logging.getLogger(__name__)
-
-
-# ============================================================
-# 输入 Schema（dataclass，后续 Sprint 3 迁移到 Pydantic）
-# ============================================================
-
-
-@dataclass
-class TaskCreate:
-    """创建任务输入。
-
-    Attributes:
-        customer_id: 客户 ID。
-        requirement: 加工要求。
-        tracking_no: 快递单号（可选）。
-    """
-
-    customer_id: int
-    requirement: str
-    tracking_no: Optional[str] = None
-
-
-@dataclass
-class TaskUpdate:
-    """更新任务输入。
-
-    仅 process_status=CREATED 时可编辑。
-
-    Attributes:
-        customer_id: 客户 ID（可选）。
-        requirement: 加工要求（可选）。
-        tracking_no: 快递单号（可选）。
-    """
-
-    customer_id: Optional[int] = None
-    requirement: Optional[str] = None
-    tracking_no: Optional[str] = None
-
-
-@dataclass
-class TaskFilter:
-    """任务列表筛选条件。
-
-    Attributes:
-        task_no: 任务编号（模糊匹配）。
-        customer_id: 客户 ID。
-        process_status: 流程状态。
-        result_status: 结果状态。
-        date_from: 创建日期起。
-        date_to: 创建日期止。
-    """
-
-    task_no: Optional[str] = None
-    customer_id: Optional[int] = None
-    process_status: Optional[TrialTaskProcessStatus] = None
-    result_status: Optional[TrialTaskResultStatus] = None
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
+logger = logging.getLogger("gtms.server")
 
 
 # ============================================================
@@ -115,100 +58,93 @@ class TaskService:
     """试磨任务业务服务。
 
     所有数据库操作均通过 SQLAlchemy Session 进行。
-    事务管理：try → commit → except rollback → finally 不自动 close。
+    事务管理：try → commit → except rollback。
+    权限检查由 Router 层负责，本层不处理权限。
     """
 
     # ============================================================
-    # 创建任务
+    # 公开 API：列表查询
     # ============================================================
 
-    def create_task(
+    def list_tasks(
         self,
         db: Session,
-        current_user: User,
-        data: TaskCreate,
-    ) -> TrialTask:
-        """创建试磨任务。
+        *,
+        task_no: Optional[str] = None,
+        customer_id: Optional[int] = None,
+        process_status: Optional[TrialTaskProcessStatus] = None,
+        result_status: Optional[TrialTaskResultStatus] = None,
+        sales_id: Optional[int] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> TrialTaskListResponse:
+        """分页查询试磨任务列表。
 
-        业务流程:
-            1. 调用 generate_task_no(db) 自动生成任务编号
-            2. 设置 process_status=CREATED, result_status=PENDING
-            3. 设置 created_by=current_user.id
-            4. 自动写入 SystemLog
-            5. commit 并返回 TrialTask
+        支持多条件筛选和排序（created_at DESC）。
 
         Args:
             db: 数据库会话。
-            current_user: 当前登录用户。
-            data: 任务创建数据。
+            task_no: 任务编号模糊搜索（可选）。
+            customer_id: 客户 ID（可选）。
+            process_status: 流程状态（可选）。
+            result_status: 结果状态（可选）。
+            sales_id: 销售 ID（可选）。
+            page: 页码（从 1 开始）。
+            page_size: 每页条数。
 
         Returns:
-            新创建的 TrialTask 实例。
-
-        Raises:
-            BusinessLogicException: 客户不存在或参数无效时抛出。
+            TrialTaskListResponse: 包含 items 与 total。
         """
-        # 验证客户存在
-        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
-        if customer is None:
-            raise BusinessLogicException(
-                f"客户不存在: id={data.customer_id}",
-                detail={"customer_id": data.customer_id},
-            )
+        query = db.query(TrialTask).filter(TrialTask.is_deleted == False)
 
-        try:
-            # 生成任务编号
-            task_no = generate_task_no(db)
+        # 多条件筛选
+        if task_no:
+            query = query.filter(TrialTask.task_no.like(f"%{task_no}%"))
+        if customer_id is not None:
+            query = query.filter(TrialTask.customer_id == customer_id)
+        if process_status is not None:
+            query = query.filter(TrialTask.process_status == process_status)
+        if result_status is not None:
+            query = query.filter(TrialTask.result_status == result_status)
+        if sales_id is not None:
+            query = query.filter(TrialTask.sales_id == sales_id)
 
-            task = TrialTask(
-                task_no=task_no,
-                customer_id=data.customer_id,
-                requirement=data.requirement,
-                tracking_no=data.tracking_no,
-                sales_id=current_user.id,
-                process_status=TrialTaskProcessStatus.CREATED,
-                result_status=TrialTaskResultStatus.PENDING,
-                created_by=current_user.id,
-            )
-            db.add(task)
-            db.flush()  # 获取 task.id
+        # 总数
+        total = query.count()
 
-            # 写入操作日志
-            self._log_action(
-                db=db,
-                user_id=current_user.id,
-                action=ActionType.CREATE,
-                target_type="TrialTask",
-                target_id=task.id,
-                changes={"task_no": task_no, "customer_id": data.customer_id},
-            )
+        # 分页 + 排序（created_at DESC）
+        offset = (page - 1) * page_size
+        items = (
+            query.order_by(TrialTask.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
 
-            db.commit()
-            logger.info(
-                "任务创建成功: task_no=%s, id=%s, user=%s",
-                task_no, task.id, current_user.username,
-            )
-            return task
+        # 转换为响应
+        responses = [self._to_response(task) for task in items]
 
-        except Exception:
-            db.rollback()
-            raise
+        return TrialTaskListResponse(items=responses, total=total)
 
     # ============================================================
-    # 查询单个任务
+    # 公开 API：查询单个任务
     # ============================================================
 
-    def get_task(self, db: Session, task_id: int) -> TrialTask:
+    def get_task(
+        self,
+        db: Session,
+        task_id: int,
+    ) -> TrialTaskResponse:
         """根据 ID 查询试磨任务。
 
-        自动过滤 is_deleted=True 的记录。
+        过滤 is_deleted=False 的记录。
 
         Args:
             db: 数据库会话。
             task_id: 任务 ID。
 
         Returns:
-            TrialTask 实例。
+            TrialTaskResponse: 任务信息。
 
         Raises:
             NotFoundException: 任务不存在或已删除。
@@ -217,161 +153,248 @@ class TaskService:
             db.query(TrialTask)
             .filter(
                 TrialTask.id == task_id,
-                TrialTask.is_deleted == False,  # noqa: E712
+                TrialTask.is_deleted == False,
             )
             .first()
         )
         if task is None:
             raise NotFoundException(
-                f"任务不存在: id={task_id}",
+                "任务不存在",
                 detail={"task_id": task_id},
             )
-        return task
+
+        return self._to_response(task)
 
     # ============================================================
-    # 查询任务列表
+    # 公开 API：创建任务
     # ============================================================
 
-    def list_tasks(
+    def create_task(
         self,
         db: Session,
-        page: int = 1,
-        page_size: int = 20,
-        filters: Optional[TaskFilter] = None,
-    ) -> tuple[list[TrialTask], int]:
-        """分页查询试磨任务列表。
+        data: TrialTaskCreate,
+        operator_id: int,
+    ) -> TrialTaskResponse:
+        """创建试磨任务。
 
-        支持多条件筛选: task_no, customer_id, process_status,
-        result_status, date_from, date_to。
-
-        自动过滤 is_deleted=True 的记录。
+        流程:
+            ① 调用 generate_task_no(db) 生成唯一编号
+            ② 校验 customer_id 存在
+            ③ 校验 sales_id 存在
+            ④ 创建 TrialTask ORM（process_status=CREATED, result_status=PENDING）
+            ⑤ 提交事务
+            ⑥ 写入 SystemLog（TrialTask Created）
 
         Args:
             db: 数据库会话。
-            page: 页码（从 1 开始）。
-            page_size: 每页条数。
-            filters: 筛选条件。
+            data: 任务创建数据（TrialTaskCreate Schema）。
+            operator_id: 操作人 ID。
 
         Returns:
-            (items, total) 元组。
+            TrialTaskResponse: 新创建的任务。
+
+        Raises:
+            BusinessLogicException: 客户或销售不存在。
         """
-        conditions = [TrialTask.is_deleted == False]  # noqa: E712
+        # ① 生成任务编号
+        task_no = generate_task_no(db)
 
-        if filters is not None:
-            if filters.task_no:
-                conditions.append(
-                    TrialTask.task_no.like(f"%{filters.task_no}%")
-                )
-            if filters.customer_id is not None:
-                conditions.append(TrialTask.customer_id == filters.customer_id)
-            if filters.process_status is not None:
-                conditions.append(
-                    TrialTask.process_status == filters.process_status
-                )
-            if filters.result_status is not None:
-                conditions.append(
-                    TrialTask.result_status == filters.result_status
-                )
-            if filters.date_from is not None:
-                conditions.append(
-                    TrialTask.created_at >= filters.date_from
-                )
-            if filters.date_to is not None:
-                conditions.append(
-                    TrialTask.created_at <= filters.date_to
-                )
-
-        query = db.query(TrialTask).filter(and_(*conditions))
-
-        total = query.count()
-        items = (
-            query
-            .order_by(TrialTask.id.desc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-            .all()
+        # ② 校验客户存在
+        customer = (
+            db.query(Customer)
+            .filter(Customer.id == data.customer_id, Customer.is_deleted == False)
+            .first()
         )
+        if customer is None:
+            raise BusinessLogicException(
+                "客户不存在或已删除",
+                detail={"customer_id": data.customer_id},
+            )
 
-        return items, total
+        # ③ 校验销售存在
+        sales = (
+            db.query(User)
+            .filter(User.id == data.sales_id, User.is_deleted == False)
+            .first()
+        )
+        if sales is None:
+            raise BusinessLogicException(
+                "销售不存在或已禁用",
+                detail={"sales_id": data.sales_id},
+            )
+
+        # ④ 创建 TrialTask ORM
+        task = TrialTask(
+            task_no=task_no,
+            customer_id=data.customer_id,
+            requirement=data.requirement,
+            tracking_no=data.tracking_no,
+            sales_id=data.sales_id,
+            process_status=TrialTaskProcessStatus.CREATED,
+            result_status=TrialTaskResultStatus.PENDING,
+            destination=data.destination,
+            destination_date=data.destination_date,
+            failure_reason=data.failure_reason,
+            created_by=operator_id,
+        )
+        db.add(task)
+        db.flush()
+
+        try:
+            # ⑤ 提交事务
+            db.commit()
+
+            # ⑥ 写入 SystemLog
+            self._write_log(
+                db,
+                operator_id=operator_id,
+                action=ActionType.CREATE,
+                target_type="TrialTask",
+                target_id=task.id,
+                changes={"task_no": task_no, "customer_id": data.customer_id},
+            )
+
+            db.refresh(task)
+            logger.info(
+                "任务创建成功: task_no=%s, id=%s, operator_id=%s",
+                task_no, task.id, operator_id,
+            )
+            return self._to_response(task)
+
+        except Exception:
+            db.rollback()
+            logger.exception("任务创建失败: task_no=%s", task_no)
+            raise
 
     # ============================================================
-    # 更新任务
+    # 公开 API：更新任务
     # ============================================================
 
     def update_task(
         self,
         db: Session,
         task_id: int,
-        current_user: User,
-        data: TaskUpdate,
-    ) -> TrialTask:
+        data: TrialTaskUpdate,
+        operator_id: int,
+    ) -> TrialTaskResponse:
         """更新试磨任务。
 
         业务规则:
-            - 仅 process_status=CREATED 状态允许编辑
-            - 可修改: customer_id, requirement, tracking_no
-            - 禁止修改: task_no
+            - 仅 process_status=CREATED 时可编辑基本信息
+            - 可修改: customer_id, requirement, tracking_no, sales_id
+            - 修改 customer_id 时校验目标客户存在
+            - 修改 sales_id 时校验目标销售存在
+            - 支持状态流转（process_status/result_status 变更需校验合法性）
             - 自动写入 SystemLog
 
         Args:
             db: 数据库会话。
             task_id: 任务 ID。
-            current_user: 当前登录用户。
-            data: 更新数据。
+            data: 更新数据（TrialTaskUpdate Schema）。
+            operator_id: 操作人 ID。
 
         Returns:
-            更新后的 TrialTask 实例。
+            TrialTaskResponse: 更新后的任务。
 
         Raises:
             NotFoundException: 任务不存在。
-            BusinessLogicException: 状态不允许编辑。
+            BusinessLogicException: 状态不允许编辑或非法状态流转。
         """
-        task = self.get_task(db, task_id)
+        task = self._get_task_orm(db, task_id)
 
-        if task.process_status != TrialTaskProcessStatus.CREATED:
-            raise BusinessLogicException(
-                f"仅创建状态的任务可编辑，当前状态: {task.process_status.value}",
-                detail={
-                    "task_id": task_id,
-                    "current_status": task.process_status.value,
-                },
-            )
+        # 记录变更
+        changes: dict = {}
+        update_data = data.model_dump(exclude_unset=True)
 
-        changes = {}
+        # 区分状态变更与基本信息编辑
+        status_fields = {"process_status", "result_status", "destination", "destination_date", "failure_reason"}
+        basic_fields = {"customer_id", "requirement", "tracking_no", "sales_id"}
 
-        if data.customer_id is not None and data.customer_id != task.customer_id:
-            # 验证客户存在
-            customer = (
-                db.query(Customer)
-                .filter(Customer.id == data.customer_id)
-                .first()
-            )
-            if customer is None:
+        # 处理基本信息编辑（仅 CREATED 状态允许）
+        for field_name in basic_fields & set(update_data):
+            if task.process_status != TrialTaskProcessStatus.CREATED:
                 raise BusinessLogicException(
-                    f"客户不存在: id={data.customer_id}",
-                    detail={"customer_id": data.customer_id},
+                    f"仅创建状态的任务可编辑基本信息，当前状态: {task.process_status.value}",
+                    detail={
+                        "task_id": task_id,
+                        "current_status": task.process_status.value,
+                        "attempted_field": field_name,
+                    },
                 )
-            changes["customer_id"] = {"old": task.customer_id, "new": data.customer_id}
-            task.customer_id = data.customer_id
 
-        if data.requirement is not None and data.requirement != task.requirement:
-            changes["requirement"] = {"old": task.requirement, "new": data.requirement}
-            task.requirement = data.requirement
+            new_value = update_data[field_name]
+            old_value = getattr(task, field_name)
 
-        if data.tracking_no is not None and data.tracking_no != task.tracking_no:
-            changes["tracking_no"] = {"old": task.tracking_no, "new": data.tracking_no}
-            task.tracking_no = data.tracking_no
+            if new_value is not None and new_value != old_value:
+                # 校验 customer_id 存在
+                if field_name == "customer_id":
+                    customer = (
+                        db.query(Customer)
+                        .filter(Customer.id == new_value, Customer.is_deleted == False)
+                        .first()
+                    )
+                    if customer is None:
+                        raise BusinessLogicException(
+                            "客户不存在或已删除",
+                            detail={"customer_id": new_value},
+                        )
+
+                # 校验 sales_id 存在
+                if field_name == "sales_id":
+                    sales = (
+                        db.query(User)
+                        .filter(User.id == new_value, User.is_deleted == False)
+                        .first()
+                    )
+                    if sales is None:
+                        raise BusinessLogicException(
+                            "销售不存在或已禁用",
+                            detail={"sales_id": new_value},
+                        )
+
+                changes[field_name] = {"old": old_value, "new": new_value}
+                setattr(task, field_name, new_value)
+
+        # 处理状态变更
+        if "process_status" in update_data:
+            new_status = update_data["process_status"]
+            if new_status is not None and new_status != task.process_status:
+                self._validate_process_status_change(task, new_status)
+                changes["process_status"] = {
+                    "old": task.process_status.value,
+                    "new": new_status.value,
+                }
+                task.process_status = new_status
+
+        if "result_status" in update_data:
+            new_status = update_data["result_status"]
+            if new_status is not None and new_status != task.result_status:
+                self._validate_result_status_change(task, new_status)
+                changes["result_status"] = {
+                    "old": task.result_status.value,
+                    "new": new_status.value,
+                }
+                task.result_status = new_status
+
+        # 处理其他状态相关字段
+        for field_name in ("destination", "destination_date", "failure_reason"):
+            if field_name in update_data:
+                new_value = update_data[field_name]
+                old_value = getattr(task, field_name)
+                if new_value != old_value:
+                    changes[field_name] = {"old": old_value, "new": new_value}
+                    setattr(task, field_name, new_value)
 
         if not changes:
-            return task  # 无变更
+            return self._to_response(task)
 
         try:
-            task.updated_by = current_user.id
+            task.updated_by = operator_id
             db.flush()
 
-            self._log_action(
-                db=db,
-                user_id=current_user.id,
+            self._write_log(
+                db,
+                operator_id=operator_id,
                 action=ActionType.UPDATE,
                 target_type="TrialTask",
                 target_id=task.id,
@@ -379,61 +402,51 @@ class TaskService:
             )
 
             db.commit()
+            db.refresh(task)
             logger.info(
-                "任务更新成功: task_id=%s, fields=%s, user=%s",
-                task_id, list(changes.keys()), current_user.username,
+                "任务更新成功: task_id=%s, fields=%s, operator_id=%s",
+                task_id, list(changes.keys()), operator_id,
             )
-            return task
+            return self._to_response(task)
 
         except Exception:
             db.rollback()
+            logger.exception("任务更新失败: task_id=%s", task_id)
             raise
 
     # ============================================================
-    # 删除任务（软删除）
+    # 公开 API：删除任务
     # ============================================================
 
     def delete_task(
         self,
         db: Session,
         task_id: int,
-        current_user: User,
+        operator_id: int,
     ) -> None:
         """软删除试磨任务。
 
-        仅管理员可执行删除操作。
-        软删除: 设置 is_deleted=True。
+        设置 is_deleted=True，不物理删除。
+        权限检查由 Router 层负责。
 
         Args:
             db: 数据库会话。
             task_id: 任务 ID。
-            current_user: 当前登录用户。
+            operator_id: 操作人 ID。
 
         Raises:
             NotFoundException: 任务不存在。
-            PermissionDeniedException: 非管理员用户。
         """
-        task = self.get_task(db, task_id)
-
-        # 管理员权限检查
-        user_role_names = {role.name for role in current_user.roles}
-        if "administrator" not in user_role_names:
-            raise PermissionDeniedException(
-                "仅管理员可删除任务",
-                detail={
-                    "task_id": task_id,
-                    "user_roles": sorted(user_role_names),
-                },
-            )
+        task = self._get_task_orm(db, task_id)
 
         try:
             task.is_deleted = True
-            task.updated_by = current_user.id
+            task.updated_by = operator_id
             db.flush()
 
-            self._log_action(
-                db=db,
-                user_id=current_user.id,
+            self._write_log(
+                db,
+                operator_id=operator_id,
                 action=ActionType.DELETE,
                 target_type="TrialTask",
                 target_id=task.id,
@@ -442,51 +455,157 @@ class TaskService:
 
             db.commit()
             logger.info(
-                "任务已删除: task_id=%s, task_no=%s, user=%s",
-                task_id, task.task_no, current_user.username,
+                "任务已删除: task_id=%s, task_no=%s, operator_id=%s",
+                task_id, task.task_no, operator_id,
             )
 
         except Exception:
             db.rollback()
+            logger.exception("任务删除失败: task_id=%s", task_id)
             raise
 
     # ============================================================
     # 私有方法
     # ============================================================
 
-    @staticmethod
-    def _log_action(
+    def _get_task_orm(self, db: Session, task_id: int) -> TrialTask:
+        """获取 ORM 实例（内部使用）。
+
+        Args:
+            db: 数据库会话。
+            task_id: 任务 ID。
+
+        Returns:
+            TrialTask ORM 实例。
+
+        Raises:
+            NotFoundException: 任务不存在或已删除。
+        """
+        task = (
+            db.query(TrialTask)
+            .filter(
+                TrialTask.id == task_id,
+                TrialTask.is_deleted == False,
+            )
+            .first()
+        )
+        if task is None:
+            raise NotFoundException(
+                "任务不存在",
+                detail={"task_id": task_id},
+            )
+        return task
+
+    def _to_response(self, task: TrialTask) -> TrialTaskResponse:
+        """将 TrialTask ORM 实例转换为 TrialTaskResponse。
+
+        Args:
+            task: TrialTask ORM 实例。
+
+        Returns:
+            TrialTaskResponse: 任务响应 Schema。
+        """
+        return TrialTaskResponse(
+            id=task.id,
+            task_no=task.task_no,
+            customer_id=task.customer_id,
+            requirement=task.requirement,
+            tracking_no=task.tracking_no,
+            sales_id=task.sales_id,
+            process_status=task.process_status,
+            result_status=task.result_status,
+            destination=task.destination,
+            destination_date=task.destination_date,
+            failure_reason=task.failure_reason,
+            created_at=task.created_at,
+            updated_at=task.updated_at,
+        )
+
+    def _write_log(
+        self,
         db: Session,
-        user_id: int,
+        *,
+        operator_id: int,
         action: ActionType,
         target_type: str,
         target_id: int,
-        changes: Optional[dict[str, Any]] = None,
+        changes: Optional[dict] = None,
     ) -> None:
         """写入系统操作日志。
 
         Args:
             db: 数据库会话。
-            user_id: 操作用户 ID。
+            operator_id: 操作人 ID。
             action: 操作类型。
             target_type: 操作对象类型。
             target_id: 操作对象 ID。
             changes: 变更内容（可选）。
         """
         log_entry = SystemLog(
-            user_id=user_id,
+            user_id=operator_id,
             action=action,
             target_type=target_type,
             target_id=target_id,
             changes=changes,
         )
         db.add(log_entry)
-        db.flush()
+        db.commit()
+
+    def _validate_process_status_change(
+        self,
+        task: TrialTask,
+        new_status: TrialTaskProcessStatus,
+    ) -> None:
+        """校验流程状态流转合法性。
+
+        使用枚举 next_statuses 属性进行检查。
+
+        Args:
+            task: 当前 TrialTask ORM 实例。
+            new_status: 目标流程状态。
+
+        Raises:
+            BusinessLogicException: 非法状态流转。
+        """
+        allowed = task.process_status.next_statuses
+        if new_status not in allowed:
+            raise BusinessLogicException(
+                f"非法状态流转: {task.process_status.value} → {new_status.value}",
+                detail={
+                    "task_id": task.id,
+                    "current_status": task.process_status.value,
+                    "target_status": new_status.value,
+                    "allowed_statuses": [s.value for s in allowed],
+                },
+            )
+
+    def _validate_result_status_change(
+        self,
+        task: TrialTask,
+        new_status: TrialTaskResultStatus,
+    ) -> None:
+        """校验结果状态流转合法性。
+
+        Args:
+            task: 当前 TrialTask ORM 实例。
+            new_status: 目标结果状态。
+
+        Raises:
+            BusinessLogicException: 非法结果状态流转。
+        """
+        allowed = task.result_status.next_statuses
+        if new_status not in allowed:
+            raise BusinessLogicException(
+                f"非法结果状态流转: {task.result_status.value} → {new_status.value}",
+                detail={
+                    "task_id": task.id,
+                    "current_result_status": task.result_status.value,
+                    "target_result_status": new_status.value,
+                    "allowed_statuses": [s.value for s in allowed],
+                },
+            )
 
 
 __all__ = [
     "TaskService",
-    "TaskCreate",
-    "TaskUpdate",
-    "TaskFilter",
 ]

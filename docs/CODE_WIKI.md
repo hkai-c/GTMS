@@ -405,7 +405,7 @@ RBAC: User ↔ user_roles ↔ Role          │ report_path │ │ direction   
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | Integer | PK | 主键 |
-| task_no | String(20) | UNIQUE, NOT NULL | 任务编号 (TM202600001) |
+| task_no | String(20) | UNIQUE, NOT NULL | 任务编号 (`YYYYMMDD-N`) |
 | customer_id | Integer | FK → customers.id | 客户 |
 | requirement | Text | NOT NULL | 加工要求 |
 | tracking_no | String(100) | — | 快递单号 |
@@ -2067,6 +2067,736 @@ chore: 构建/工具
 - API 接口做权限校验
 - 生产环境修改 `SECRET_KEY`
 
+### 15.5 View 层开发规范 (View Layer Development Standard)
+
+> **自 Sprint 5 起生效。所有 View (QWidget/QMainWindow) 统一遵循以下规范。**
+
+#### 15.5.1 单一职责 (Single Responsibility)
+
+View 仅负责：
+- UI 展示
+- 用户交互
+- Signal 连接
+- Widget 组合
+- 页面刷新
+
+View 不得负责：
+- 业务规则
+- 权限判断
+- 数据库操作
+- HTTP 请求
+- JWT 认证
+- ORM 操作
+- 编号生成
+- 状态流转
+- 日志写入
+
+#### 15.5.2 数据来源 (Data Source)
+
+View 只能调用 **Desktop Service** 获取数据。
+
+禁止直接调用：
+- `ApiClient`
+- `requests`
+- Server Service
+- Router
+- ORM
+- Database
+
+#### 15.5.3 业务规则 (Business Rule)
+
+全部业务规则统一由 **Server Service** 实现。View 不得重复实现任何业务规则，包括：
+- 唯一性判断
+- 状态流转
+- 权限校验
+- 编号生成
+- 数据校验
+
+#### 15.5.4 Widget 复用 (Widget Reuse)
+
+View 必须优先复用 **Widget Layer**，不得重复实现公共组件，包括：
+- `SearchBar`
+- `StatusBadge`
+- `Pagination`
+- `ImagePreview`
+- `Timeline`
+
+#### 15.5.5 布局标准 (Layout Standard)
+
+推荐统一布局（自上而下）：
+
+```
+Toolbar
+  ↓
+Search Area
+  ↓
+Data Table
+  ↓
+Pagination
+  ↓
+Status Bar
+```
+
+所有 CRUD 页面保持统一风格。
+
+#### 15.5.6 Signal 通信 (Signal Communication)
+
+View 通过 **Signal / Slot** 完成交互。Widget 不得直接调用 View 或 Service。
+
+#### 15.5.7 异常处理 (Exception Handling)
+
+View 仅负责通过 `QMessageBox` 显示错误信息。不得：
+- 包装异常
+- 吞异常
+- 修改异常类型
+
+#### 15.5.8 日志 (Logging)
+
+统一使用 `logging.getLogger("gtms.client")`。禁止使用 `print()`。
+
+#### 15.5.9 依赖规则 (Dependency Rule)
+
+| 允许 | 禁止 |
+|------|------|
+| `Qt (PySide6)` | `Server` 模块 |
+| `Desktop Service` | `ORM` |
+| `Widget` | `Database` |
+| `logging` | `Router` |
+| `typing` | `JWT` |
+| | `requests` |
+
+#### 15.5.10 公开 API 冻结 (Public API Freeze)
+
+View 公开 API 一旦完成 Mini Freeze，不得修改：
+- 函数签名
+- Signal
+- 公开 Property
+
+仅允许新增私有函数。
+
+#### 15.5.11 代码风格 (Code Style)
+
+- PEP8
+- Google Docstring
+- Type Hint
+- 无 TODO
+- 无 FIXME
+- 无 `pass`
+- 无循环导入
+
+#### 15.5.12 测试 (Testing)
+
+所有 View 必须覆盖：
+- `py_compile`
+- `import`
+- 公开 API
+- Signal
+- 刷新流程
+- 异常处理
+- Widget 集成
+- 无业务逻辑
+- Frozen API
+- PEP8
+
+#### 15.5.13 分层依赖 (Layer Dependency)
+
+GTMS 统一架构（自上而下）：
+
+```
+Server
+  ↓
+Desktop Service
+  ↓
+Widget
+  ↓
+View
+  ↓
+MainWindow
+```
+
+任何层不得跨层访问。
+
+#### 15.5.14 冻结流程 (Freeze Process)
+
+View 完成开发后必须执行：
+1. **Mini Freeze Review** — 单 View 审查
+2. **View Baseline Freeze Review** — 全部 View 基线审查
+3. **Sprint Baseline Freeze Review** — Sprint 整体审查
+
+#### 15.5.15 适用范围
+
+本规范适用于以下及未来所有 View：
+- `TrialTaskView`
+- `CustomerView`
+- `UserManageView`
+- `ReceiptView`
+- `GrindingView`
+- `InspectionView`
+- `DispatchView`
+- `Dashboard`
+- `Statistics`
+- `LogView`
+
+### 15.6 UI 组件开发规范 (UI Component Development Standard)
+
+> **自 Sprint 5 起生效。所有 Widget (Qt UI 组件) 统一遵循以下规范。**
+>
+> 适用于：`StatusBadge`、`SearchBar`、`Pagination`、`ImagePreview`、`Timeline`、`AttachmentList`、`StatisticsCard`、`DashboardCard`、`EmptyState`、`LoadingOverlay` 以及未来所有公共 Widget。
+
+#### 15.6.1 设计目标 (Design Goal)
+
+Widget 必须：可复用、独立、轻量、Pure UI。不得绑定任何具体业务页面。
+
+#### 15.6.2 单一职责 (Single Responsibility)
+
+Widget 仅负责：
+- UI 展示
+- 用户输入
+- 状态显示
+- Signal 发射
+- 简单 UI 状态维护
+
+Widget 不得负责：
+- 业务规则
+- 数据库操作
+- HTTP 请求
+- JWT 认证
+- 权限校验
+- 编号生成
+- 状态流转
+- ORM 操作
+- Server 调用
+
+#### 15.6.3 依赖规则 (Dependency Rule)
+
+| 允许 | 禁止 |
+|------|------|
+| `Qt (PySide6)` | `Desktop Service` |
+| `typing` | `ApiClient` |
+| `logging` | `Server` 模块 |
+| 标准库 | `Router` |
+| | `ORM` |
+| | `Database` |
+| | `requests` |
+| | `JWT` |
+| | `bcrypt` |
+| | 任何业务模块 |
+
+#### 15.6.4 公开 API 设计 (Public API Design)
+
+公开 API 应保持简单、稳定、一致。公开成员仅允许：
+- `__init__()`
+- 公开方法
+- 公开 Property
+- 公开 Signal
+
+不得暴露内部状态、内部实现细节、私有成员。
+
+#### 15.6.5 Signal 标准 (Signal Standard)
+
+Signal 统一命名规范：
+- `xxx_requested` — 请求类（如 `search_requested`）
+- `xxx_changed` — 变更类（如 `customer_changed`）
+- `xxx_selected` — 选中类
+- `xxx_clicked` — 点击类
+- `xxx_finished` — 完成类
+
+Signal 仅负责通知，不得直接调用 View、Desktop Service、Server。
+
+#### 15.6.6 事件处理 (Event Handling)
+
+Widget 仅处理：用户输入、按钮点击、键盘事件、焦点事件、UI 更新。不得执行业务流程。
+
+#### 15.6.7 样式标准 (Style Standard)
+
+统一使用 **Qt StyleSheet** 实现外观。颜色、字体、圆角、边框统一集中管理。除特殊情况外，禁止：
+- `paintEvent()`
+- `QPainter`
+- 自绘控件
+
+#### 15.6.8 布局标准 (Layout Standard)
+
+Widget 内部布局使用 `QHBoxLayout` / `QVBoxLayout` / `QGridLayout`。保持结构清晰、Margin 合理、Spacing 合理。禁止绝对坐标布局。
+
+#### 15.6.9 可配置性 (Configuration)
+
+Widget 支持动态配置，例如：Placeholder、标题、按钮文字、颜色、图标、尺寸等。不得硬编码业务文本。
+
+#### 15.6.10 日志 (Logging)
+
+统一使用 `logging.getLogger("gtms.client")`。禁止 `print()`。
+
+#### 15.6.11 异常处理 (Exception Handling)
+
+Widget 不处理业务异常。允许参数校验（`ValueError`、`TypeError`）。不得使用 `QMessageBox`、`HTTPException`、`BusinessLogicException`、`NotFoundException` 等业务异常。
+
+#### 15.6.12 Widget 通信 (Widget Communication)
+
+Widget 之间通过 **Signal / Slot** 通信。不得直接引用其它 Widget、View、Desktop Service。
+
+#### 15.6.13 可复用性 (Reusability)
+
+任何 Widget 不得绑定 TrialTask、Customer、User、Receipt、Grinding、Inspection、Dispatch 等业务对象。必须保持业务无关。
+
+#### 15.6.14 可访问性 (Accessibility)
+
+Widget 应支持：
+- `ObjectName`
+- `ToolTip`
+- `Placeholder`
+- Keyboard Focus
+- 快捷键（如适用）
+
+便于自动化测试、可访问性、国际化。
+
+#### 15.6.15 命名规范 (Naming Convention)
+
+| 类别 | 规范 | 示例 |
+|------|------|------|
+| 文件名 | `snake_case` | `status_badge.py`、`search_bar.py`、`pagination.py` |
+| 类名 | `PascalCase` | `StatusBadge`、`SearchBar`、`Pagination` |
+| 私有成员 | 下划线开头 | `_status`、`_search_input` |
+
+#### 15.6.16 代码风格 (Code Style)
+
+- PEP8
+- Google Docstring
+- Type Hint
+- UTF-8
+- LF 换行
+- 禁止：TODO、FIXME、`pass`、循环导入
+
+#### 15.6.17 测试要求 (Testing Requirement)
+
+所有 Widget 必须覆盖：
+- `py_compile`
+- `import`
+- 公开 API
+- Signal
+- Property
+- 参数更新
+- 异常
+- PEP8
+- Type Hint
+- Docstring
+- 无循环导入
+- Frozen API
+
+测试全部 PASS。
+
+#### 15.6.18 公开 API 冻结 (Public API Freeze)
+
+Widget 完成 Mini Freeze 后公开 API 冻结。禁止修改公开方法、Signal、Property、函数签名。允许新增私有函数、新增内部实现、Bug Fix。不得影响外部调用。
+
+#### 15.6.19 分层位置 (Layer Position)
+
+GTMS 统一分层：
+
+```
+Server
+  ↓
+Desktop Service
+  ↓
+Widget          ← 当前层
+  ↓
+View
+  ↓
+MainWindow
+```
+
+Widget 只能位于 Desktop Service 与 View 之间，不得跨层访问。
+
+#### 15.6.20 适用范围 (Applicable Scope)
+
+本规范适用于：
+- `StatusBadge`
+- `SearchBar`
+- `Pagination`
+- `ImagePreview`
+- `AttachmentList`
+- `Timeline`
+- `StatisticsCard`
+- `DashboardCard`
+- `EmptyState`
+- `LoadingOverlay`
+- 以及未来所有公共 Widget
+
+#### 15.6.21 冻结流程
+
+Widget 开发完成后必须执行：
+1. **Mini Freeze Review** — 单 Widget 审查
+2. **Widget Baseline Freeze Review** — 全部 Widget 基线审查
+
+之后方可进入 View 开发。如需新增规则，应统一更新本文档，对所有 Widget 保持一致。
+
+### 15.7 CRUD 页面开发规范 (CRUD View Development Standard)
+
+> **自 Sprint 5 起生效。所有 CRUD 页面统一遵循本规范。**
+>
+> 适用于：`UserManageView`、`CustomerView`、`TrialTaskView`、`ReceiptView`、`GrindingView`、`InspectionView`、`DispatchView`、`ReportView`、`LogView`、`StatisticsView` 以及未来所有 CRUD 页面。
+
+#### 15.7.1 设计目标 (Design Goal)
+
+CRUD 页面必须：统一布局、统一交互、统一数据刷新流程、统一权限控制、统一分页方式、统一搜索方式、统一异常处理。保持可维护、可扩展。
+
+#### 15.7.2 单一职责 (Single Responsibility)
+
+View 仅负责：
+- 页面展示
+- 事件响应
+- 调用 Desktop Service
+- 刷新 UI
+- Signal 通信
+
+View 不得负责：
+- 业务规则
+- 数据库操作
+- HTTP 请求
+- JWT 认证
+- ORM 操作
+- 编号生成
+- 状态流转
+- 权限计算
+- 数据校验
+
+#### 15.7.3 分层依赖 (Layer Dependency)
+
+CRUD View 只能依赖：
+
+| 允许 | 禁止 |
+|------|------|
+| `Widget` | `ApiClient` |
+| `Desktop Service` | `Router` |
+| `Qt (PySide6)` | `Server` 模块 |
+| `typing` | `ORM` |
+| `logging` | `Database` |
+| | `requests` |
+| | `JWT` |
+| | `bcrypt` |
+| | 任何 Server 模块 |
+
+#### 15.7.4 标准布局 (Standard Layout)
+
+所有 CRUD 页面统一布局（自上而下）：
+
+```
+标题
+  ↓
+Toolbar
+  ↓
+SearchBar
+  ↓
+Table
+  ↓
+Pagination
+  ↓
+StatusBar
+```
+
+不得随意改变布局顺序。
+
+#### 15.7.5 Toolbar 标准 (Toolbar Standard)
+
+Toolbar 统一放置按钮：
+
+| 按钮 | 命名 | 说明 |
+|------|------|------|
+| 新增 | `add_btn` | 打开新增 Dialog |
+| 编辑 | `edit_btn` | 打开编辑 Dialog |
+| 删除 | `delete_btn` | 确认后删除（如允许） |
+| 刷新 | `refresh_btn` | 刷新列表 |
+| 弹簧 | `Stretch` | 占位 |
+| 搜索 | `SearchBar` | 搜索框 |
+
+按钮命名统一，禁止业务特殊命名。
+
+#### 15.7.6 搜索标准 (Search Standard)
+
+统一使用 `SearchBar` Widget。不得自行创建 `QLineEdit` + `QPushButton` 搜索框。所有搜索统一：模糊搜索 → Enter / 按钮点击 → `search_requested` Signal。
+
+#### 15.7.7 表格标准 (Table Standard)
+
+统一使用 `QTableWidget`（未来如升级 `QTableView`，应统一迁移）。
+
+默认配置：
+- `NoEditTriggers` — 禁止编辑单元格
+- `SelectRows` — 行选择模式
+- `SingleSelection` — 单选
+- `AlternatingRowColors` — 交替行颜色
+- `Stretch` — 最后一列自动拉伸
+
+列头统一由 View 定义。
+
+#### 15.7.8 分页标准 (Pagination Standard)
+
+统一分页组件，包含：第一页、上一页、下一页、最后一页。
+
+统一属性：
+- `_page_size` — 每页条数
+- `_current_page` — 当前页码
+- `_total` — 总记录数
+- `total_pages` — 总页数
+
+刷新流程统一。
+
+#### 15.7.9 StatusBar 标准 (StatusBar Standard)
+
+统一显示：共 XX 条记录、分页信息、刷新状态。禁止业务逻辑提示。
+
+#### 15.7.10 刷新流程 (Refresh Flow)
+
+统一刷新流程：
+
+```
+refresh()
+  ↓
+Desktop Service.list_xxx()
+  ↓
+更新 Table
+  ↓
+更新分页
+  ↓
+更新 StatusBar
+```
+
+`refresh()` 作为唯一刷新入口。
+
+#### 15.7.11 CRUD 流程 (CRUD Flow)
+
+**新增：**
+
+```
+Dialog → Desktop Service.create() → refresh() → emit changed Signal
+```
+
+**编辑：**
+
+```
+Dialog → Desktop Service.update() → refresh() → emit changed Signal
+```
+
+**删除：**
+
+```
+确认 → Desktop Service.delete() → refresh() → emit changed Signal
+```
+
+所有 CRUD 页面保持一致。
+
+#### 15.7.12 Dialog 规则 (Dialog Rule)
+
+新增/编辑统一使用 Dialog。Dialog 负责输入、参数收集、结果返回。View 负责调用 Desktop Service。
+
+#### 15.7.13 权限规则 (Permission Rule)
+
+按钮状态统一由 `_update_button_permissions()` 控制。禁止在多个地方分别判断权限。
+
+#### 15.7.14 数据来源 (Data Source)
+
+数据只能来自 **Desktop Service**。禁止直接访问 `ApiClient`、`requests`、Server、ORM、Database。
+
+#### 15.7.15 异常处理 (Exception Handling)
+
+异常统一通过 `QMessageBox` 显示。禁止 `print()`、吞异常、忽略异常。业务异常统一来自 Server。
+
+#### 15.7.16 Signal 标准 (Signal Standard)
+
+统一使用 `xxx_changed` Signal 刷新页面通知。页面之间通过 Signal/Slot 通信。禁止页面互相直接调用。
+
+#### 15.7.17 日志 (Logging)
+
+统一使用 `logging.getLogger("gtms.client")`。禁止 `print()`。
+
+#### 15.7.18 代码风格 (Code Style)
+
+- PEP8
+- Google Docstring
+- Type Hint
+- UTF-8
+- LF 换行
+- 禁止：TODO、FIXME、`pass`、循环导入
+
+#### 15.7.19 测试要求 (Testing Requirement)
+
+CRUD 页面必须覆盖：
+- `py_compile`
+- `import`
+- Toolbar
+- SearchBar
+- Table
+- Pagination
+- StatusBar
+- `refresh()`
+- CRUD 流程
+- Signal
+- 权限
+- 异常
+- logger
+- PEP8
+- Type Hint
+- Docstring
+- Frozen API
+
+测试全部 PASS。
+
+#### 15.7.20 公开 API 冻结 (Public API Freeze)
+
+Mini Freeze 后公开 API 冻结。禁止修改公开方法、Signal、Property、函数签名。允许 Bug Fix、内部实现优化、新增私有函数。
+
+#### 15.7.21 基线冻结 (Baseline Freeze)
+
+所有 CRUD 页面完成后执行 **CRUD View Baseline Freeze Review**。检查布局、交互、Signal、分页、权限、异常、API、测试覆盖。
+
+#### 15.7.22 适用范围 (Applicable Scope)
+
+本规范适用于：
+- `UserManageView`
+- `CustomerView`
+- `TrialTaskView`
+- `ReceiptView`
+- `GrindingView`
+- `InspectionView`
+- `DispatchView`
+- `ReportView`
+- `LogView`
+- `StatisticsView`
+- 以及未来所有 CRUD 页面
+
+#### 15.7.23 ObjectName 标准 (ObjectName Standard)
+
+所有 CRUD 页面中的 QWidget 必须设置 `ObjectName`。ObjectName 必须唯一、语义明确、统一采用 `snake_case` 命名。
+
+禁止无意义命名：`button1`、`table1`、`widget1`、`layout1`、`lineEdit1`、`pushButton1` 等。
+
+推荐统一命名：
+
+| ObjectName | 用途 |
+|------|------|
+| `toolbar` | 工具栏 |
+| `search_bar` | 搜索栏 |
+| `task_table` | 任务表格 |
+| `customer_table` | 客户表格 |
+| `user_table` | 用户表格 |
+| `status_bar` | 状态栏 |
+| `pagination_widget` | 分页组件 |
+| `add_btn` | 新增按钮 |
+| `edit_btn` | 编辑按钮 |
+| `delete_btn` | 删除按钮 |
+| `refresh_btn` | 刷新按钮 |
+| `first_page_btn` | 首页按钮 |
+| `prev_page_btn` | 上一页按钮 |
+| `next_page_btn` | 下一页按钮 |
+| `last_page_btn` | 末页按钮 |
+| `page_label` | 页码标签 |
+| `total_label` | 总数标签 |
+| `title_label` | 标题标签 |
+| `dialog_button_box` | 对话框按钮盒 |
+
+ObjectName 用于 QSS、Qt Designer、自动化测试、UI 调试。后续所有 CRUD 页面保持一致。
+
+#### 15.7.24 表头标准 (Table Header Standard)
+
+所有 CRUD 页面 Table Header 必须集中管理。统一定义 `TABLE_HEADERS` 常量。
+
+示例：
+
+```python
+TABLE_HEADERS = [
+    "任务编号",
+    "客户名称",
+    "加工要求",
+    "销售",
+    "流程状态",
+    "结果状态",
+    "创建时间",
+]
+```
+
+禁止在多个地方重复 `setHorizontalHeaderLabels([...])`。必须统一使用 `setHorizontalHeaderLabels(TABLE_HEADERS)`。便于维护、国际化（i18n）、自动化测试、代码一致性。
+
+#### 15.7.25 常量标准 (Constants Standard)
+
+所有固定配置必须集中定义，包括但不限于：
+- `WINDOW_TITLE` — 窗口标题
+- `TABLE_HEADERS` — 表头
+- `DEFAULT_PAGE_SIZE` — 默认每页条数
+- `BUTTON_TEXT` — 按钮文字
+- `COLUMN_INDEX` — 列索引
+- `OBJECT_NAMES` — ObjectName 集合
+- `DEFAULT_WIDTH` — 默认宽度
+- `DEFAULT_HEIGHT` — 默认高度
+
+禁止 Magic Number / Magic String 散落在代码中。所有常量统一放置于文件顶部。
+
+#### 15.7.26 禁止 Magic Number / Magic String (No Magic Number / No Magic String)
+
+禁止将以下值直接写入业务代码：
+
+| 类型 | 禁止示例 | 应改为 |
+|------|---------|------|
+| 数字 | `20`、`8`、`100` | `DEFAULT_PAGE_SIZE`、`COLUMN_COUNT` |
+| 字符串 | `"新增"`、`"编辑"`、`"删除"`、`"刷新"`、`"搜索"` | `BUTTON_TEXT`、`WINDOW_TITLE` |
+
+统一定义常量，后续维护时仅修改常量。
+
+#### 15.7.27 命名一致性 (Naming Consistency)
+
+所有 CRUD 页面统一采用一致命名：
+
+| 组件 | 统一命名 |
+|------|---------|
+| 表格 | `task_table`、`customer_table`、`user_table` |
+| 工具栏 | `toolbar` |
+| 搜索栏 | `search_bar` |
+| 状态栏 | `status_bar` |
+| 分页组件 | `pagination_widget` |
+| 刷新入口 | `refresh()` |
+| 权限刷新 | `_update_button_permissions()` |
+| 数据填充 | `_populate_table()` |
+| 搜索回调 | `_on_search()` |
+| 新增回调 | `_on_add()` |
+| 编辑回调 | `_on_edit()` |
+| 删除回调 | `_on_delete()` |
+
+保持 GTMS 全项目统一命名。
+
+#### 15.7.28 CRUD View 常量约定 (CRUD View Constants Convention)
+
+建议所有 CRUD 页面统一定义以下文件顶部常量：
+
+```python
+WINDOW_TITLE = "..."
+
+TABLE_HEADERS = [...]
+
+COLUMN_INDEX = {...}
+
+DEFAULT_PAGE_SIZE = 20
+
+BUTTON_TEXT = {...}
+
+OBJECT_NAMES = {...}
+
+LOGGER_NAME = "gtms.client"
+```
+
+禁止在多个函数中重复定义。
+
+#### 15.7.29 可维护性原则 (Maintainability Principle)
+
+所有 CRUD 页面应遵循：
+- 高内聚、低耦合
+- 统一命名
+- 统一布局
+- 统一刷新流程
+- 统一分页
+- 统一搜索
+- 统一异常处理
+- 统一日志
+- 统一 Widget 复用
+
+保证后续新增页面无需重新设计开发规范。
+
 ---
 
 ## 16. V1.0 开发计划
@@ -2126,7 +2856,7 @@ chore: 构建/工具
 ---
 
 > **文档维护者：** GTMS 开发团队  
-> **最后更新：** 2026-07-07  
+> **最后更新：** 2026-07-08  
 > **对应版本：** V1.0
 
 ---

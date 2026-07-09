@@ -315,7 +315,7 @@
 
 **Sprint 5 完成条件：**
 
-- [ ] 任务编号自动生成 TM202600001 格式
+- [ ] generate_task_no() 自动生成 YYYYMMDD-N
 - [ ] 非法状态流转被拒绝
 - [ ] 仅 created 状态可编辑基本信息
 - [ ] 任务详情各区块按状态正确显示/隐藏
@@ -798,7 +798,7 @@ data_control/
 | 3.1 | 创建 `server/core/exceptions.py` | 4 个自定义异常类 | NotFoundException、PermissionDeniedException、BusinessLogicException、DuplicateException |
 | 3.2 | 创建 `server/core/security.py` | SecurityManager + PermissionChecker | JWT 生成/验证、bcrypt 密码哈希、ROLE_PERMISSIONS 映射 |
 | 3.3 | 创建 `server/core/dependencies.py` | get_current_user()、require_role() | 依赖注入函数 |
-| 3.4 | 创建 `server/utils/id_generator.py` | TaskNumberGenerator | TM202600001 格式 |
+| 3.4 | 创建 `server/utils/id_generator.py` | TaskNumberGenerator | `YYYYMMDD-N` 格式 |
 | 3.5 | 创建 `server/utils/file_handler.py` | FileHandler | 文件校验、存储、命名 |
 | 3.6 | 创建 `server/middleware/cors_middleware.py` | setup_cors() | 跨域配置 |
 | 3.7 | 创建 `server/middleware/log_middleware.py` | LogMiddleware | 请求日志中间件 |
@@ -934,7 +934,7 @@ data_control/
 
 ### 7.3 验收标准
 
-- [ ] 对照 SRS AC-03：任务编号自动生成且唯一（TM202600001 格式），process_status 初始化为 created
+- [ ] 对照 SRS AC-03：任务编号自动生成且唯一（`YYYYMMDD-N` 格式），process_status 初始化为 created
 - [ ] 对照 SRS AC-04：非法状态流转被拒绝（如从 created 直接跳到 grinding）
 - [ ] 对照 SRS BR-03：仅 process_status=created 状态可编辑基本信息
 - [ ] 对照 UI §6.3：列表操作按钮按状态正确显示

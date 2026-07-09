@@ -569,7 +569,7 @@ CREATE TABLE notifications (
 | # | 字段 | 类型 | 空 | 默认值 | 说明 |
 |---|------|------|:--:|------|------|
 | 1 | id | INT | | AUTO | 主键 |
-| 2 | task_no | VARCHAR(20) | NOT | | 任务编号 (TM202600001) |
+| 2 | task_no | VARCHAR(20) | NOT | | 任务编号 (`YYYYMMDD-N`) |
 | 3 | customer_id | INT | NOT | | 客户（FK → customers.id） |
 | 4 | requirement | TEXT | NOT | | 加工要求 |
 | 5 | tracking_no | VARCHAR(100) | YES | NULL | 快递单号 |
