@@ -3989,6 +3989,639 @@ View
 CRUD
 Upload
 
+### 15.11 Business Workflow Development Standard
+
+本规范用于统一 GTMS 业务流程（Workflow）的设计、实现与维护方式，确保各模块业务流程一致、职责清晰、易于扩展。
+
+---
+
+#### 15.11.1 设计目标（Design Goals）
+
+所有业务流程应遵循：
+
+- 流程统一
+- 职责单一
+- 可扩展
+- 可维护
+- 状态一致
+- 业务集中
+- UI 无业务逻辑
+
+保证未来新增业务流程无需重新设计整体架构。
+
+---
+
+#### 15.11.2 适用范围（Scope）
+
+本规范适用于：
+
+- TrialTask
+- Receipt
+- Grinding
+- Inspection
+- Dispatch
+- Report
+- Future Workflow
+
+以及未来所有涉及业务流程管理的模块。
+
+---
+
+#### 15.11.3 Workflow 分层职责（Workflow Layer Responsibility）
+
+业务流程统一遵循：
+
+Server Service
+
+↓
+
+Desktop Service
+
+↓
+
+View
+
+↓
+
+Widget
+
+Server Service：
+
+负责业务流程。
+
+Desktop Service：
+
+负责调用 Server API。
+
+View：
+
+负责展示和事件分发。
+
+Widget：
+
+负责状态展示。
+
+---
+
+#### 15.11.4 Workflow Ownership
+
+所有 Workflow 必须由：
+
+Server Service
+
+统一负责。
+
+禁止：
+
+Desktop Service
+
+View
+
+Widget
+
+直接实现业务流程。
+
+---
+
+#### 15.11.5 Workflow 状态流转
+
+所有状态流转：
+
+统一由 Server Service 控制。
+
+禁止：
+
+View 修改状态。
+
+禁止：
+
+Desktop Service 修改状态。
+
+禁止：
+
+Widget 修改状态。
+
+---
+
+#### 15.11.6 Workflow API
+
+所有 Workflow API：
+
+统一由 Router 暴露。
+
+Desktop Service：
+
+仅负责调用。
+
+禁止：
+
+Widget
+
+View
+
+直接调用 HTTP。
+
+---
+
+#### 15.11.7 Workflow Event
+
+所有 Workflow：
+
+统一使用：
+
+Signal
+
+通知界面刷新。
+
+Signal：
+
+仅通知。
+
+不得携带业务逻辑。
+
+---
+
+#### 15.11.8 Workflow Refresh
+
+所有 Workflow 操作成功后：
+
+统一：
+
+refresh()
+
+刷新页面。
+
+不得局部修改 UI 数据。
+
+---
+
+#### 15.11.9 Workflow Logging
+
+Workflow 应记录：
+
+开始
+
+成功
+
+失败
+
+Error
+
+日志统一使用：
+
+logging.getLogger("gtms.client")
+
+---
+
+#### 15.11.10 Workflow Exception
+
+业务异常：
+
+统一由：
+
+Server
+
+抛出。
+
+Desktop：
+
+原样抛出。
+
+View：
+
+QMessageBox
+
+统一显示。
+
+Widget：
+
+不得处理业务异常。
+
+---
+
+#### 15.11.11 Workflow Testing
+
+所有 Workflow 必须覆盖：
+
+- 创建
+- 编辑
+- 删除
+- 状态流转
+- 异常
+- 权限
+- 上传（如适用）
+
+所有测试必须通过。
+
+---
+
+#### 15.11.12 Public API Freeze
+
+Workflow 对外公开接口：
+
+评审通过后立即冻结。
+
+禁止修改：
+
+函数签名
+
+参数
+
+返回值
+
+Signal
+
+---
+
+#### 15.11.13 Mini Freeze
+
+每个 Workflow 完成后必须执行：
+
+Workflow Mini Freeze Review。
+
+Review 内容包括：
+
+- Architecture
+- Dependency
+- Workflow
+- Refresh
+- Logging
+- Exception
+- Testing
+- Frozen API
+
+---
+
+#### 15.11.14 Workflow Baseline Freeze
+
+所有 Workflow 完成后必须执行：
+
+Workflow Baseline Freeze Review。
+
+Review 内容包括：
+
+- Workflow Architecture
+- Layer Responsibility
+- Business Logic
+- Status Flow
+- Upload Flow（如适用）
+- Exception
+- Logging
+- Testing
+- Frozen API
+
+Review 通过后：
+
+Workflow Layer 正式冻结。
+
+### 15.12 Status Machine Development Standard
+
+本规范用于统一 GTMS 状态机（Status Machine）的设计、实现与维护方式，确保所有业务状态定义一致、状态流转可控、职责清晰、易于扩展。
+
+---
+
+#### 15.12.1 设计目标（Design Goals）
+
+所有状态机应遵循：
+
+- 状态统一
+- 流转明确
+- 单一入口
+- 易扩展
+- 易维护
+- 状态一致
+- UI 无业务逻辑
+
+保证未来新增状态无需重构整体架构。
+
+---
+
+#### 15.12.2 适用范围（Scope）
+
+本规范适用于：
+
+- TrialTask
+- Receipt
+- Grinding
+- Inspection
+- Dispatch
+- Report
+- Future Status Machine
+
+以及未来所有涉及状态管理的模块。
+
+---
+
+#### 15.12.3 状态分类（Status Classification）
+
+GTMS 状态统一分为：
+
+Process Status
+
+Result Status
+
+Process Status：
+
+表示业务流程状态。
+
+Result Status：
+
+表示业务处理结果。
+
+不得混合使用。
+
+---
+
+#### 15.12.4 状态定义原则（Status Definition）
+
+所有状态必须：
+
+- 唯一
+- 可读
+- 可扩展
+- 可序列化
+
+统一使用：
+
+snake_case
+
+命名。
+
+禁止：
+
+Status1
+
+Status2
+
+TempStatus
+
+Done
+
+Finish
+
+等无语义命名。
+
+---
+
+#### 15.12.5 状态流转原则（Status Transition）
+
+所有状态流转必须：
+
+单向。
+
+禁止：
+
+循环跳转。
+
+禁止：
+
+跨阶段跳转。
+
+禁止：
+
+非法状态修改。
+
+状态流转统一由：
+
+Server Service
+
+负责。
+
+---
+
+#### 15.12.6 状态修改权限（Status Ownership）
+
+只有：
+
+Server Service
+
+允许修改状态。
+
+禁止：
+
+Router
+
+Desktop Service
+
+View
+
+Widget
+
+直接修改状态。
+
+---
+
+#### 15.12.7 状态展示规范（Status Presentation）
+
+状态展示统一使用：
+
+StatusBadge Widget
+
+统一颜色
+
+统一文本
+
+统一图标（如适用）
+
+禁止：
+
+View
+
+自行拼接状态文本。
+
+---
+
+#### 15.12.8 状态查询规范（Status Query）
+
+所有列表接口应支持：
+
+process_status
+
+result_status
+
+查询过滤。
+
+统一使用：
+
+Query Parameter。
+
+禁止：
+
+Python 内存过滤。
+
+---
+
+#### 15.12.9 状态刷新规范（Status Refresh）
+
+状态修改成功后：
+
+统一调用：
+
+refresh()
+
+刷新页面。
+
+不得局部修改状态显示。
+
+---
+
+#### 15.12.10 状态日志（Status Logging）
+
+所有状态流转应记录：
+
+原状态
+
+新状态
+
+Task ID
+
+Operator
+
+Time
+
+日志统一使用：
+
+logging.getLogger("gtms.client")
+
+---
+
+#### 15.12.11 状态异常（Status Exception）
+
+非法状态流转：
+
+统一由：
+
+Server
+
+抛出业务异常。
+
+Desktop：
+
+原样抛出。
+
+View：
+
+QMessageBox
+
+统一提示。
+
+Widget：
+
+不得处理状态异常。
+
+---
+
+#### 15.12.12 状态测试（Status Testing）
+
+所有状态机必须覆盖：
+
+- 合法流转
+- 非法流转
+- 重复流转
+- 边界状态
+- 状态查询
+- 状态展示
+
+所有测试必须通过。
+
+---
+
+#### 15.12.13 Public API Freeze
+
+所有状态相关公开 API：
+
+Review 通过后立即冻结。
+
+禁止修改：
+
+函数签名
+
+参数
+
+返回值
+
+Signal
+
+---
+
+#### 15.12.14 Mini Freeze
+
+每个状态模块完成后必须执行：
+
+Status Machine Mini Freeze Review。
+
+Review 内容包括：
+
+- Architecture
+- Status Definition
+- Status Transition
+- Dependency
+- Exception
+- Logging
+- Testing
+- Frozen API
+
+---
+
+#### 15.12.15 Status Machine Baseline Freeze
+
+所有状态机完成后必须执行：
+
+Status Machine Baseline Freeze Review。
+
+Review 内容包括：
+
+- Status Definition
+- Status Transition
+- Server Ownership
+- Desktop Delegation
+- View Presentation
+- Widget Integration
+- Logging
+- Exception
+- Testing
+- Frozen API
+
+Review 通过后：
+
+Status Machine 正式冻结。
+
+---
+
+#### 15.12.16 禁止事项（Prohibited）
+
+禁止：
+
+- View 修改状态
+- Widget 修改状态
+- Desktop Service 修改状态
+- Router 实现状态流转
+- 绕过 Server Service 修改状态
+- 同时修改 Process Status 与 Result Status 而无业务依据
+- 在 UI 中硬编码状态颜色
+- 使用 Magic String 判断状态
+- 在多个模块维护同一状态逻辑
+
+所有状态逻辑统一由：
+
+Server Service
+
+负责。
+
+---
+
+#### 15.12.17 可扩展性原则（Extensibility Principle）
+
+所有状态机应支持：
+
+- 新增状态
+- 新增状态流转
+- 新增状态展示
+- 新增查询条件
+- 新增业务模块
+
+不得因新增状态而重构整体架构。
+
 ---
 
 ## 16. V1.0 开发计划

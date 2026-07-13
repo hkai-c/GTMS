@@ -1,6 +1,6 @@
 """GTMS 桌面端视图层 (Client Views)
 
-Sprint 3 — Task 3.9, 3.10, 3.12 / Sprint 4 — Task 4.5 / Sprint 5 — Task 5.7, 5.8, 5.9 / Sprint 6 — Task 6.8
+Sprint 3 — Task 3.9, 3.10, 3.12 / Sprint 4 — Task 4.5 / Sprint 5 — Task 5.7, 5.8, 5.9 / Sprint 6 — Task 6.8 / Sprint 7 — Task 7.5
 
 提供桌面端 UI 界面：
     - login_view:            桌面端登录窗口
@@ -13,11 +13,13 @@ Sprint 3 — Task 3.9, 3.10, 3.12 / Sprint 4 — Task 4.5 / Sprint 5 — Task 5.
     - task_edit_dialog:      试磨任务编辑对话框
     - task_detail_view:      试磨任务详情页
     - receipt_view:          收件登记管理页面
+    - grinding_view:         试磨管理页面
 """
 
 from client.views.login_view import LoginView
 from client.views.main_window import MainWindow
 from client.views.receipt_view import ReceiptView
+from client.views.grinding_view import GrindingView
 from client.views.user_manage_view import UserManageView
 from client.views.user_edit_dialog import UserEditDialog
 from client.views.customer_view import CustomerView
@@ -30,6 +32,7 @@ __all__ = [
     "LoginView",
     "MainWindow",
     "ReceiptView",
+    "GrindingView",
     "UserManageView",
     "UserEditDialog",
     "CustomerView",
