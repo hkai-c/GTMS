@@ -1,7 +1,7 @@
 """
 server.schemas 包
 
-Sprint 3 — Task 3.1 / Sprint 4 — Task 4.1 / Sprint 5 — Task 5.1 / Sprint 6 — Task 6.1
+Sprint 3 — Task 3.1 / Sprint 4 — Task 4.1 / Sprint 5 — Task 5.1 / Sprint 6 — Task 6.1 / Sprint 7 — Task 7.1 / Sprint 8 — Task 8.1
 GTMS Pydantic Schema 层，用于 API 请求/响应序列化。
 
 包含:
@@ -10,6 +10,8 @@ GTMS Pydantic Schema 层，用于 API 请求/响应序列化。
     - customer_schema:       客户相关 Schema（CustomerCreate, CustomerResponse 等）
     - trial_task_schema:     试磨任务相关 Schema（TrialTaskCreate, TrialTaskResponse 等）
     - receipt_schema:        收件记录相关 Schema（ReceiptCreate, ReceiptResponse 等）
+    - grinding_schema:       试磨记录相关 Schema（GrindingCreate, GrindingResponse 等）
+    - inspection_schema:     检测记录相关 Schema（InspectionCreate, InspectionResponse 等）
 """
 
 from server.schemas.user_schema import (
@@ -48,6 +50,16 @@ from server.schemas.trial_task_schema import (
     TrialTaskResponse,
     TrialTaskListResponse,
 )
+from server.schemas.inspection_schema import (
+    InspectionBase,
+    InspectionCreate,
+    InspectionUpdate,
+    InspectionResponse,
+    InspectionListResponse,
+    InspectionQuery,
+    InspectionFinishRequest,
+    InspectionReport,
+)
 
 __all__ = [
     # User
@@ -81,4 +93,13 @@ __all__ = [
     "TrialTaskUpdate",
     "TrialTaskResponse",
     "TrialTaskListResponse",
+    # Inspection
+    "InspectionBase",
+    "InspectionCreate",
+    "InspectionUpdate",
+    "InspectionResponse",
+    "InspectionListResponse",
+    "InspectionQuery",
+    "InspectionFinishRequest",
+    "InspectionReport",
 ]

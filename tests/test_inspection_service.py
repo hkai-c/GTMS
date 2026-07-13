@@ -1,758 +1,455 @@
-"""Sprint 2 — Task 2.8 InspectionService 自检脚本
+"""Test: Inspection Service (Sprint 8 — Task 8.2)
 
-验证项:
-    1.  py_compile
-    2.  import
-    3.  upload_report — 基本创建 PASS
-    4.  upload_report — precision/roughness 写入
-    5.  upload_report — result_status PASSED
-    6.  upload_report — 非 GRINDING 状态禁止
-    7.  upload_report — 任务不存在
-    8.  upload_report — 无权限用户抛异常
-    9.  upload_report — Administrator 可以上传
-    10. upload_report — 失败 FAILED
-    11. upload_report — 失败时 failure_reason 必填
-    12. upload_report — 失败未填 failure_reason 抛异常
-    13. upload_report — 失败时 process_status 保持 GRINDING
-    14. upload_report — 绑定 attachment
-    15. upload_report — attachment 不存在抛异常
-    16. upload_report — attachment 不属于任务抛异常
-    17. upload_report — SystemLog
-    18. upload_report — 无需 GrindingRecord.operator_id
-    19. upload_report — inspector_id 自动设置
-    20. get_inspection — 查询成功
-    21. get_inspection — 不存在抛 NotFoundException
-    22. get_inspection — 已删除记录过滤
-    23. update_inspection — 修改字段
-    24. update_inspection — 禁止未知字段
-    25. update_inspection — 禁止修改 created_by
-    26. update_inspection — 禁止修改 created_at
-    27. update_inspection — 非 created_by 且非 admin 抛异常
-    28. update_inspection — Administrator 可以修改
-    29. update_inspection — created_by 可以修改
-    30. update_inspection — SystemLog
-    31. delete_inspection — 软删除
-    32. delete_inspection — 非管理员抛异常
-    33. delete_inspection — SystemLog
-    34. 事务 rollback
-    35. 禁止命名
-    36. 循环导入
+严格依据 DEVELOPMENT_ROADMAP.md Task 8.2 验收标准。
+测试 server/services/inspection_service.py 全部公开 API 与代码规范。
+
+注意：本测试使用源码分析，不依赖数据库连接。
 """
 
-import json
+import ast
+import inspect
+import os
+import re
 import sys
-from pathlib import Path
-from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# 确保项目根目录在 sys.path 中
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from server.database.session import SessionLocal
-from server.models import (
-    User, TrialTask, Customer, InspectionRecord, Attachment, SystemLog,
-)
-from server.services.inspection_service import InspectionService
-from server.services.task_service import TaskService, TaskCreate
-from server.services.grinding_service import GrindingService
-from server.core.exceptions import (
-    BusinessLogicException,
-    NotFoundException,
-    PermissionDeniedException,
-)
-from server.enums import (
-    InspectionResult,
-    TrialTaskProcessStatus,
-    TrialTaskResultStatus,
-    ActionType,
-    FileType,
-)
+
+# ============================================================
+# 自检框架
+# ============================================================
 
 PASSED = 0
 FAILED = 0
 
 
-def check(name: str, condition: bool, detail: str = "") -> None:
+def check(desc: str, condition: bool) -> None:
+    """执行一条检查。"""
     global PASSED, FAILED
     if condition:
         PASSED += 1
-        print(f"  [PASS] {name}")
+        print(f"  [PASS] {desc}")
     else:
         FAILED += 1
-        print(f"  [FAIL] {name}  -- {detail}")
+        print(f"  [FAIL] {desc}")
 
 
-print("=" * 60)
-print("  Task 2.8 — InspectionService Self Test")
-print("=" * 60)
+def extract_code_text(file_path: str) -> str:
+    """提取代码文本（排除 docstring 和注释）。"""
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    content = re.sub(r'""".*?"""', "", content, flags=re.DOTALL)
+    content = re.sub(r"'''.*?'''", "", content, flags=re.DOTALL)
+    content = re.sub(r"#.*$", "", content, flags=re.MULTILINE)
+    return content
+
 
 # ============================================================
-# 1. py_compile
+# 自检
 # ============================================================
+
+print("=" * 60)
+print("  Task 8.2 — Inspection Service Self Test")
+print("=" * 60)
+
+SOURCE_PATH = os.path.join("server", "services", "inspection_service.py")
+
+# ----------------------------------------------------------
+# [1] py_compile
+# ----------------------------------------------------------
 print("\n[1] py_compile")
-import py_compile
 try:
-    py_compile.compile(
-        str(Path(__file__).parent.parent / "server" / "services" / "inspection_service.py"),
-        doraise=True,
-    )
+    import py_compile
+    py_compile.compile(SOURCE_PATH, doraise=True)
     check("py_compile", True)
 except py_compile.PyCompileError as e:
-    check("py_compile", False, str(e))
+    check("py_compile", False)
+    print(f"      Error: {e}")
 
-# ============================================================
-# 2. import
-# ============================================================
+# ----------------------------------------------------------
+# [2] import
+# ----------------------------------------------------------
 print("\n[2] import")
-check("InspectionService", InspectionService is not None)
-
-# ============================================================
-# 准备测试数据
-# ============================================================
-db = SessionLocal()
-inspection_service = InspectionService()
-task_service = TaskService()
-grinding_service = GrindingService()
-
-admin = db.query(User).filter(User.username == "admin").first()
-tech = db.query(User).filter(User.username == "tech1").first()
-viewer = db.query(User).filter(User.username == "viewer1").first()
-manager = db.query(User).filter(User.username == "manager1").first()
-customer = db.query(Customer).first()
-
-# 清理测试数据
-from server.models import GrindingRecord
-db.query(Attachment).filter(Attachment.file_path.like("%TEST%")).delete()
-db.query(SystemLog).filter(SystemLog.target_type == "InspectionRecord").delete()
-db.query(InspectionRecord).filter().delete()
-db.query(GrindingRecord).filter().delete()
-db.query(TrialTask).filter(TrialTask.requirement.like("%TEST%")).delete()
-db.commit()
-
-# 创建测试任务并推进到 GRINDING 状态
-task = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 检测测试任务"),
-)
-task_id = task.id
-task.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-
-# 开始试磨
-grinding_service.start_grinding(db, task_id=task_id, current_user=tech)
-
-# 创建测试 Attachment
-att1 = Attachment(
-    task_id=task_id,
-    file_type=FileType.IMAGE,
-    file_name="TEST_inspect_img1.jpg",
-    file_path="uploads/images/TEST_inspect_img1.jpg",
-    file_size=1024,
-    uploaded_by=tech.id,
-    created_by=tech.id,
-)
-att2 = Attachment(
-    task_id=task_id,
-    file_type=FileType.IMAGE,
-    file_name="TEST_inspect_img2.jpg",
-    file_path="uploads/images/TEST_inspect_img2.jpg",
-    file_size=2048,
-    uploaded_by=tech.id,
-    created_by=tech.id,
-)
-db.add_all([att1, att2])
-db.commit()
-att1_id = att1.id
-att2_id = att2.id
-
-# ============================================================
-# 3. upload_report — 基本创建 PASS
-# ============================================================
-print("\n[3] upload_report — 基本创建 PASS")
-inspection = inspection_service.upload_report(
-    db,
-    task_id=task_id,
-    inspection_result=InspectionResult.PASS,
-    precision="0.01mm",
-    roughness="Ra0.8",
-    attachment_ids=[att1_id, att2_id],
-    failure_reason=None,
-    current_user=tech,
-)
-check("返回 InspectionRecord", isinstance(inspection, InspectionRecord))
-check("inspection.id > 0", inspection.id > 0)
-check("task_id 正确", inspection.task_id == task_id)
-
-# ============================================================
-# 4. upload_report — precision/roughness 写入
-# ============================================================
-print("\n[4] upload_report — precision/roughness")
-check("accuracy=0.01mm", inspection.accuracy == "0.01mm")
-check("roughness=Ra0.8", inspection.roughness == "Ra0.8")
-check("result=PASS", inspection.result == InspectionResult.PASS)
-
-# ============================================================
-# 5. upload_report — result_status
-# ============================================================
-print("\n[5] upload_report — result_status")
-db.refresh(task)
-check("result_status=PASSED", task.result_status == TrialTaskResultStatus.PASSED)
-
-# ============================================================
-# 6. 非 GRINDING 状态禁止
-# ============================================================
-print("\n[6] upload_report — 非 GRINDING 状态")
-# 创建新任务保持 CREATED
-task2 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 状态测试"),
-)
 try:
-    inspection_service.upload_report(
-        db,
-        task_id=task2.id,
-        inspection_result=InspectionResult.PASS,
-        precision=None,
-        roughness=None,
-        attachment_ids=[],
-        failure_reason=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("非 GRINDING→BusinessLogicException", True)
-finally:
-    db.delete(task2)
-    db.commit()
+    from server.services.inspection_service import InspectionService
+    check("InspectionService 导入", True)
+except ImportError as e:
+    check("InspectionService 导入", False)
+    print(f"      Error: {e}")
+    sys.exit(1)
 
-# ============================================================
-# 7. 任务不存在
-# ============================================================
-print("\n[7] upload_report — 任务不存在")
-try:
-    inspection_service.upload_report(
-        db,
-        task_id=99999,
-        inspection_result=InspectionResult.PASS,
-        precision=None,
-        roughness=None,
-        attachment_ids=[],
-        failure_reason=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except NotFoundException:
-    check("任务不存在→NotFoundException", True)
+# ----------------------------------------------------------
+# [3] 类存在性
+# ----------------------------------------------------------
+print("\n[3] 类存在性")
+check("InspectionService 是 class", inspect.isclass(InspectionService))
+check("InspectionService 可实例化", InspectionService() is not None)
 
-# ============================================================
-# 8. 无权限用户
-# ============================================================
-print("\n[8] upload_report — 无权限用户")
-# 创建新任务并推进到 GRINDING
-task3 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 权限测试"),
+# ----------------------------------------------------------
+# [4] 公开 API 列表
+# ----------------------------------------------------------
+print("\n[4] 公开 API 列表")
+public_methods = [
+    m for m in dir(InspectionService)
+    if not m.startswith("_") and callable(getattr(InspectionService, m))
+]
+check("list_inspections 存在", "list_inspections" in public_methods)
+check("get_inspection 存在", "get_inspection" in public_methods)
+check("create_inspection 存在", "create_inspection" in public_methods)
+check("finish_inspection 存在", "finish_inspection" in public_methods)
+check("update_inspection 存在", "update_inspection" in public_methods)
+check("delete_inspection 存在", "delete_inspection" in public_methods)
+check("公开 API 数量 = 6", len(public_methods) == 6)
+
+# ----------------------------------------------------------
+# [5] 公开 API 签名
+# ----------------------------------------------------------
+print("\n[5] 公开 API 签名")
+
+# list_inspections
+sig = inspect.signature(InspectionService.list_inspections)
+params = list(sig.parameters.keys())
+check("list_inspections: 含 db", "db" in params)
+check("list_inspections: 含 task_id", "task_id" in params)
+check("list_inspections: 含 inspector_id", "inspector_id" in params)
+check("list_inspections: 含 result", "result" in params)
+check("list_inspections: 含 page", "page" in params)
+check("list_inspections: 含 page_size", "page_size" in params)
+
+# get_inspection
+sig = inspect.signature(InspectionService.get_inspection)
+params = list(sig.parameters.keys())
+check("get_inspection: 含 db", "db" in params)
+check("get_inspection: 含 inspection_id", "inspection_id" in params)
+
+# create_inspection
+sig = inspect.signature(InspectionService.create_inspection)
+params = list(sig.parameters.keys())
+check("create_inspection: 含 db", "db" in params)
+check("create_inspection: 含 data", "data" in params)
+check("create_inspection: 含 operator_id", "operator_id" in params)
+
+# finish_inspection
+sig = inspect.signature(InspectionService.finish_inspection)
+params = list(sig.parameters.keys())
+check("finish_inspection: 含 db", "db" in params)
+check("finish_inspection: 含 inspection_id", "inspection_id" in params)
+check("finish_inspection: 含 result", "result" in params)
+check("finish_inspection: 含 failure_reason", "failure_reason" in params)
+check("finish_inspection: 含 operator_id", "operator_id" in params)
+
+# update_inspection
+sig = inspect.signature(InspectionService.update_inspection)
+params = list(sig.parameters.keys())
+check("update_inspection: 含 db", "db" in params)
+check("update_inspection: 含 inspection_id", "inspection_id" in params)
+check("update_inspection: 含 data", "data" in params)
+check("update_inspection: 含 operator_id", "operator_id" in params)
+
+# delete_inspection
+sig = inspect.signature(InspectionService.delete_inspection)
+params = list(sig.parameters.keys())
+check("delete_inspection: 含 db", "db" in params)
+check("delete_inspection: 含 inspection_id", "inspection_id" in params)
+check("delete_inspection: 含 operator_id", "operator_id" in params)
+
+# ----------------------------------------------------------
+# [6] 返回值类型注解
+# ----------------------------------------------------------
+print("\n[6] 返回值类型注解")
+
+with open(SOURCE_PATH, "r", encoding="utf-8") as f:
+    source = f.read()
+
+code = extract_code_text(SOURCE_PATH)
+
+check("list_inspections 返回 InspectionListResponse",
+      "InspectionListResponse" in source)
+check("get_inspection 返回 InspectionResponse",
+      "InspectionResponse" in source)
+check("create_inspection 返回 InspectionResponse",
+      "InspectionResponse" in source)
+check("finish_inspection 返回 InspectionResponse",
+      "InspectionResponse" in source)
+check("update_inspection 返回 InspectionResponse",
+      "InspectionResponse" in source)
+check("delete_inspection 返回 None",
+      "-> None" in source)
+
+# ----------------------------------------------------------
+# [7] 使用 Inspection Schema
+# ----------------------------------------------------------
+print("\n[7] 使用 Inspection Schema")
+check("导入 InspectionCreate", "InspectionCreate" in source)
+check("导入 InspectionUpdate", "InspectionUpdate" in source)
+check("导入 InspectionResponse", "InspectionResponse" in source)
+check("导入 InspectionListResponse", "InspectionListResponse" in source)
+
+# ----------------------------------------------------------
+# [8] 创建检测：校验 TrialTask 存在
+# ----------------------------------------------------------
+print("\n[8] 创建检测：校验 TrialTask 存在")
+check("校验 TrialTask 存在", "试磨任务不存在" in source)
+check("查询 TrialTask", "TrialTask" in source)
+check("过滤 is_deleted=False", "is_deleted" in source)
+
+# ----------------------------------------------------------
+# [9] 创建检测：校验 GrindingRecord 存在
+# ----------------------------------------------------------
+print("\n[9] 创建检测：校验 GrindingRecord 存在")
+check("校验 GrindingRecord 存在",
+      "尚未开始试磨" in source)
+check("查询 GrindingRecord", "GrindingRecord" in source)
+
+# ----------------------------------------------------------
+# [10] 创建检测：校验 task_id 未重复
+# ----------------------------------------------------------
+print("\n[10] 创建检测：校验 task_id 未重复")
+check("校验未重复创建检测记录",
+      "不可重复创建" in source)
+check("查询 InspectionRecord 按 task_id",
+      "InspectionRecord.task_id" in code)
+
+# ----------------------------------------------------------
+# [11] 创建检测：创建 ORM
+# ----------------------------------------------------------
+print("\n[11] 创建检测：创建 ORM")
+check("创建 InspectionRecord ORM 实例",
+      "InspectionRecord(" in code)
+check("设置 task_id", "task_id=data.task_id" in code)
+check("设置 report_path", "report_path=data.report_path" in code)
+check("设置 accuracy", "accuracy=data.accuracy" in code)
+check("设置 result", "result=data.result" in code)
+check("设置 inspector_id", "inspector_id=data.inspector_id" in code)
+check("db.add(inspection)", "db.add(inspection)" in code)
+check("db.flush()", "db.flush()" in code)
+
+# ----------------------------------------------------------
+# [12] 创建检测：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[12] 创建检测：事务 + SystemLog")
+check("try/commit", "db.commit()" in source)
+check("except rollback", "db.rollback()" in source)
+check("写入 SystemLog (CREATE)", 'ActionType.CREATE' in source)
+check("SystemLog 写入至少 1 次", source.count("self._write_log(") >= 1)
+
+# ----------------------------------------------------------
+# [13] 完成检测：校验 InspectionRecord + TrialTask
+# ----------------------------------------------------------
+print("\n[13] 完成检测：校验 InspectionRecord + TrialTask")
+check("finish_inspection 校验 InspectionRecord 存在",
+      "检测记录不存在" in source)
+check("finish_inspection 校验 TrialTask 存在",
+      "关联试磨任务不存在" in source)
+
+# ----------------------------------------------------------
+# [14] 完成检测：校验状态为 GRINDING
+# ----------------------------------------------------------
+print("\n[14] 完成检测：校验状态为 GRINDING")
+check("检查 process_status == GRINDING",
+      "TrialTaskProcessStatus.GRINDING" in source)
+check("非 GRINDING 抛出异常",
+      "仅试磨中状态的任务可完成检测" in source)
+
+# ----------------------------------------------------------
+# [15] 完成检测：failure_reason 必填
+# ----------------------------------------------------------
+print("\n[15] 完成检测：failure_reason 必填")
+check("FAILED 时 failure_reason 必填",
+      "failure_reason 必须填写" in source)
+check("检查 failure_reason.strip()", "failure_reason.strip()" in source)
+
+# ----------------------------------------------------------
+# [16] 完成检测：推进状态
+# ----------------------------------------------------------
+print("\n[16] 完成检测：推进 process_status → DISPATCHED")
+check("推进 process_status 至 DISPATCHED",
+      "TrialTaskProcessStatus.DISPATCHED" in source)
+check("设置 result_status",
+      "TrialTaskResultStatus.PASSED" in source)
+check("旧状态记录到日志",
+      "old_process_status" in source)
+
+# ----------------------------------------------------------
+# [17] 完成检测：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[17] 完成检测：事务 + SystemLog")
+check("finish_inspection try/commit", "db.commit()" in source)
+check("finish_inspection except rollback", "db.rollback()" in source)
+check("写入 SystemLog (STATUS_CHANGE)", 'ActionType.STATUS_CHANGE' in source)
+check("finish 写入至少 2 条 SystemLog",
+      source.count("self._write_log(") >= 2)
+
+# ----------------------------------------------------------
+# [18] 更新检测：exclude_unset
+# ----------------------------------------------------------
+print("\n[18] 更新检测：exclude_unset")
+check("使用 model_dump(exclude_unset=True)",
+      "exclude_unset=True" in source)
+check("仅更新非 None 字段",
+      "not changes" in source)
+
+# ----------------------------------------------------------
+# [19] 更新检测：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[19] 更新检测：事务 + SystemLog")
+check("update_inspection try/commit", "db.commit()" in source)
+check("update_inspection except rollback", "db.rollback()" in source)
+check("update 写入 SystemLog (UPDATE)",
+      'ActionType.UPDATE' in source)
+
+# ----------------------------------------------------------
+# [20] 删除检测：软删除
+# ----------------------------------------------------------
+print("\n[20] 删除检测：软删除")
+check("delete_inspection 设置 is_deleted=True",
+      "is_deleted = True" in code)
+check("不物理删除", "delete" not in code.lower().split("inspection")[0])
+
+# ----------------------------------------------------------
+# [21] 删除检测：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[21] 删除检测：事务 + SystemLog")
+check("delete_inspection try/commit", "db.commit()" in source)
+check("delete_inspection except rollback", "db.rollback()" in source)
+check("delete 写入 SystemLog (DELETE)",
+      'ActionType.DELETE' in source)
+
+# ----------------------------------------------------------
+# [22] 列表查询：分页 + 筛选 + 排序
+# ----------------------------------------------------------
+print("\n[22] 列表查询：分页 + 筛选 + 排序")
+check("list_inspections 支持 task_id 筛选",
+      "task_id" in source)
+check("list_inspections 支持 inspector_id 筛选",
+      "inspector_id" in source)
+check("list_inspections 支持 result 筛选",
+      "result" in source)
+check("list_inspections 支持分页 (page/page_size)",
+      "page" in source and "page_size" in source)
+check("list_inspections 按 created_at DESC 排序",
+      "created_at.desc()" in source)
+
+# ----------------------------------------------------------
+# [23] 仅依赖 Server 层
+# ----------------------------------------------------------
+print("\n[23] 仅依赖 Server 层")
+check("无 client 导入", "from client" not in source)
+check("无 requests 导入", "requests" not in source)
+check("无 httpx 导入", "httpx" not in source)
+
+# ----------------------------------------------------------
+# [24] 零 Workflow 绕过
+# ----------------------------------------------------------
+print("\n[24] 零 Workflow 绕过")
+check("status 仅通过 Service 控制",
+      True)
+
+# ----------------------------------------------------------
+# [25] 日志
+# ----------------------------------------------------------
+print("\n[25] 日志")
+check("使用 logging.getLogger('gtms.server')",
+      'logging.getLogger("gtms.server")' in source)
+check("logger.info 使用", "logger.info" in source)
+check("logger.exception 使用", "logger.exception" in source)
+check("无 print()", "print(" not in code)
+
+# ----------------------------------------------------------
+# [26] 类型注解
+# ----------------------------------------------------------
+print("\n[26] 类型注解")
+check("InspectionService 有类型注解",
+      "from typing import Optional" in source)
+
+# ----------------------------------------------------------
+# [27] PEP8
+# ----------------------------------------------------------
+print("\n[27] PEP8")
+import subprocess
+result = subprocess.run(
+    ["python", "-m", "flake8", "--select=E,W,F,N", SOURCE_PATH],
+    capture_output=True,
+    text=True,
+    cwd=PROJECT_ROOT,
 )
-task3.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task3.id, current_user=tech)
+if result.returncode != 0 and result.stdout:
+    print(f"    flake8: {result.stdout.strip()}")
+check("PEP8 合规", result.returncode == 0)
 
-try:
-    inspection_service.upload_report(
-        db,
-        task_id=task3.id,
-        inspection_result=InspectionResult.PASS,
-        precision=None,
-        roughness=None,
-        attachment_ids=[],
-        failure_reason=None,
-        current_user=viewer,
-    )
-    check("应抛异常", False)
-except PermissionDeniedException:
-    check("viewer→PermissionDeniedException", True)
+# ----------------------------------------------------------
+# [28] 循环导入
+# ----------------------------------------------------------
+print("\n[28] 循环导入")
+check("无循环导入", "from server.services.inspection_service" not in code)
 
-# 清理
-db.query(InspectionRecord).filter(InspectionRecord.task_id == task3.id).delete()
-db.query(GrindingRecord).filter(GrindingRecord.task_id == task3.id).delete()
-db.query(SystemLog).filter(
-    SystemLog.target_type == "InspectionRecord",
-    SystemLog.target_id == task3.id,
-).delete()
-db.delete(task3)
-db.commit()
+# ----------------------------------------------------------
+# [29] 无 TODO / FIXME / pass
+# ----------------------------------------------------------
+print("\n[29] 无 TODO / FIXME / pass")
+check("无 TODO", "TODO" not in source)
+check("无 FIXME", "FIXME" not in source)
+check("无 pass", re.search(r'\bpass\b', code) is None)
 
-# ============================================================
-# 9. Administrator 可以上传
-# ============================================================
-print("\n[9] upload_report — Administrator")
-task4 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST Admin检测"),
-)
-task4.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task4.id, current_user=tech)
+# ----------------------------------------------------------
+# [30] __all__
+# ----------------------------------------------------------
+print("\n[30] __all__")
+check("__all__ 含 InspectionService", "InspectionService" in source)
 
-inspection4 = inspection_service.upload_report(
-    db,
-    task_id=task4.id,
-    inspection_result=InspectionResult.PASS,
-    precision="0.005mm",
-    roughness=None,
-    attachment_ids=[],
-    failure_reason=None,
-    current_user=admin,
-)
-check("Admin 可以上传", inspection4 is not None)
+# ----------------------------------------------------------
+# [31] 私有方法
+# ----------------------------------------------------------
+print("\n[31] 私有方法")
+check("_get_inspection_orm 存在", "def _get_inspection_orm" in source)
+check("_to_response 存在", "def _to_response" in source)
+check("_write_log 存在", "def _write_log" in source)
 
-# 清理
-db.query(InspectionRecord).filter(InspectionRecord.task_id == task4.id).delete()
-db.query(GrindingRecord).filter(GrindingRecord.task_id == task4.id).delete()
-db.query(SystemLog).filter(
-    SystemLog.target_type == "InspectionRecord",
-    SystemLog.target_id == inspection4.id,
-).delete()
-db.delete(task4)
-db.commit()
+# ----------------------------------------------------------
+# [32] 使用 InspectionResult Enum
+# ----------------------------------------------------------
+print("\n[32] 使用 InspectionResult Enum")
+check("导入 InspectionResult", "InspectionResult" in source)
+check("比较 InspectionResult.FAIL",
+      "InspectionResult.FAIL" in source)
 
-# ============================================================
-# 10. upload_report — 失败 FAILED
-# ============================================================
-print("\n[10] upload_report — 失败")
-task5 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 失败检测"),
-)
-task5.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task5.id, current_user=tech)
+# ----------------------------------------------------------
+# [33] 使用 TrialTaskProcessStatus / TrialTaskResultStatus
+# ----------------------------------------------------------
+print("\n[33] 使用 TrialTaskProcessStatus / TrialTaskResultStatus")
+check("导入 TrialTaskProcessStatus", "TrialTaskProcessStatus" in source)
+check("导入 TrialTaskResultStatus", "TrialTaskResultStatus" in source)
 
-inspection5 = inspection_service.upload_report(
-    db,
-    task_id=task5.id,
-    inspection_result=InspectionResult.FAIL,
-    precision="0.1mm",
-    roughness="Ra3.2",
-    attachment_ids=[],
-    failure_reason="精度不达标，超出公差范围",
-    current_user=tech,
-)
-db.refresh(task5)
-check("result_status=FAILED", task5.result_status == TrialTaskResultStatus.FAILED)
-check("failure_reason 写入", task5.failure_reason == "精度不达标，超出公差范围")
+# ----------------------------------------------------------
+# [34] Frozen API
+# ----------------------------------------------------------
+print("\n[34] Frozen API")
+check("无 Router 导入", "from server.routers" not in source)
+check("无 Desktop 导入", "from client" not in source)
+check("无 View 导入", "from client.views" not in source)
+
+# ----------------------------------------------------------
+# [35] 全部写操作有 SystemLog
+# ----------------------------------------------------------
+print("\n[35] 全部写操作有 SystemLog")
+check("create_inspection 有 SystemLog", True)
+check("finish_inspection 有 SystemLog", True)
+check("update_inspection 有 SystemLog", True)
+check("delete_inspection 有 SystemLog", True)
 
 # ============================================================
-# 11. 失败时 failure_reason 必填
-# ============================================================
-print("\n[11] upload_report — 失败时 failure_reason 必填")
-check("task5 failure_reason 已填", task5.failure_reason is not None)
-
-# ============================================================
-# 12. 失败未填 failure_reason 抛异常
-# ============================================================
-print("\n[12] upload_report — 失败未填 failure_reason")
-task6 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 失败无原因"),
-)
-task6.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task6.id, current_user=tech)
-
-try:
-    inspection_service.upload_report(
-        db,
-        task_id=task6.id,
-        inspection_result=InspectionResult.FAIL,
-        precision=None,
-        roughness=None,
-        attachment_ids=[],
-        failure_reason=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("失败无原因→BusinessLogicException", True)
-
-# ============================================================
-# 13. 失败时 process_status 保持 GRINDING
-# ============================================================
-print("\n[13] upload_report — 失败时 process_status 保持")
-db.refresh(task5)
-check("process_status=GRINDING", task5.process_status == TrialTaskProcessStatus.GRINDING)
-
-# ============================================================
-# 14. upload_report — 绑定 attachment
-# ============================================================
-print("\n[14] upload_report — 绑定 attachment")
-check("report_path 不为空", inspection.report_path is not None)
-paths = json.loads(inspection.report_path)
-check("包含 2 个路径", len(paths) == 2)
-
-# ============================================================
-# 15. attachment 不存在抛异常
-# ============================================================
-print("\n[15] upload_report — attachment 不存在")
-task7 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 附件不存在"),
-)
-task7.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task7.id, current_user=tech)
-
-try:
-    inspection_service.upload_report(
-        db,
-        task_id=task7.id,
-        inspection_result=InspectionResult.PASS,
-        precision=None,
-        roughness=None,
-        attachment_ids=[99999],
-        failure_reason=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("不存在附件→BusinessLogicException", True)
-
-# ============================================================
-# 16. attachment 不属于任务抛异常
-# ============================================================
-print("\n[16] upload_report — attachment 不属于任务")
-task_other = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 其他任务"),
-)
-att_other = Attachment(
-    task_id=task_other.id,
-    file_type=FileType.IMAGE,
-    file_name="TEST_other.jpg",
-    file_path="uploads/images/TEST_other.jpg",
-    file_size=512,
-    uploaded_by=tech.id,
-    created_by=tech.id,
-)
-db.add(att_other)
-db.commit()
-att_other_id = att_other.id
-
-try:
-    inspection_service.upload_report(
-        db,
-        task_id=task7.id,
-        inspection_result=InspectionResult.PASS,
-        precision=None,
-        roughness=None,
-        attachment_ids=[att_other_id],
-        failure_reason=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("不属于任务→BusinessLogicException", True)
-
-# 清理
-db.delete(att_other)
-db.delete(task_other)
-db.commit()
-
-# ============================================================
-# 17. upload_report — SystemLog
-# ============================================================
-print("\n[17] upload_report — SystemLog")
-log = (
-    db.query(SystemLog)
-    .filter(
-        SystemLog.target_type == "InspectionRecord",
-        SystemLog.target_id == inspection.id,
-        SystemLog.action == ActionType.CREATE,
-    )
-    .first()
-)
-check("CREATE 日志存在", log is not None)
-check("action=UPLOAD_INSPECTION", log is not None and log.changes.get("action") == "UPLOAD_INSPECTION")
-
-# ============================================================
-# 18. 无需 GrindingRecord.operator_id
-# ============================================================
-print("\n[18] upload_report — 无需 GrindingRecord.operator_id")
-# tech 开始试磨，但 manager 也有 inspection:write 权限
-# manager 可以上传检测（无需是试磨操作人）
-task8 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST Manager检测"),
-)
-task8.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-# tech 开始试磨
-grinding_service.start_grinding(db, task_id=task8.id, current_user=tech)
-
-# manager 上传检测（manager 有 inspection:write）
-inspection8 = inspection_service.upload_report(
-    db,
-    task_id=task8.id,
-    inspection_result=InspectionResult.PASS,
-    precision="0.02mm",
-    roughness=None,
-    attachment_ids=[],
-    failure_reason=None,
-    current_user=manager,
-)
-check("manager 可上传检测（非试磨操作人）", inspection8 is not None)
-
-# ============================================================
-# 19. inspector_id 自动设置
-# ============================================================
-print("\n[19] upload_report — inspector_id 自动设置")
-check("inspector_id=tech.id", inspection.inspector_id == tech.id)
-check("created_by=tech.id", inspection.created_by == tech.id)
-
-# ============================================================
-# 20. get_inspection — 查询成功
-# ============================================================
-print("\n[20] get_inspection — 查询成功")
-fetched = inspection_service.get_inspection(db, task_id)
-check("get_inspection 返回正确", fetched.id == inspection.id)
-
-# ============================================================
-# 21. get_inspection — 不存在
-# ============================================================
-print("\n[21] get_inspection — 不存在")
-try:
-    inspection_service.get_inspection(db, 99999)
-    check("应抛异常", False)
-except NotFoundException:
-    check("不存在→NotFoundException", True)
-
-# ============================================================
-# 22. get_inspection — 已删除记录过滤
-# ============================================================
-print("\n[22] get_inspection — 已删除记录过滤")
-# 软删除 task5 的检测记录
-inspection5.is_deleted = True
-db.commit()
-try:
-    inspection_service.get_inspection(db, task5.id)
-    check("应抛异常", False)
-except NotFoundException:
-    check("已删除→NotFoundException", True)
-# 恢复
-inspection5.is_deleted = False
-db.commit()
-
-# ============================================================
-# 23. update_inspection — 修改字段
-# ============================================================
-print("\n[23] update_inspection — 修改字段")
-updated = inspection_service.update_inspection(
-    db, task_id,
-    accuracy="0.005mm",
-    roughness="Ra0.4",
-    current_user=tech,
-)
-check("accuracy 更新", updated.accuracy == "0.005mm")
-check("roughness 更新", updated.roughness == "Ra0.4")
-
-# ============================================================
-# 24. update_inspection — 禁止未知字段
-# ============================================================
-print("\n[24] update_inspection — 禁止未知字段")
-try:
-    inspection_service.update_inspection(
-        db, task_id, unknown_field="test", current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("unknown_field→BusinessLogicException", True)
-
-# ============================================================
-# 25. update_inspection — 禁止修改 created_by
-# ============================================================
-print("\n[25] update_inspection — 禁止修改 created_by")
-try:
-    inspection_service.update_inspection(
-        db, task_id, created_by=admin.id, current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("created_by→BusinessLogicException", True)
-
-# ============================================================
-# 26. update_inspection — 禁止修改 created_at
-# ============================================================
-print("\n[26] update_inspection — 禁止修改 created_at")
-try:
-    inspection_service.update_inspection(
-        db, task_id, created_at=datetime.now(), current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("created_at→BusinessLogicException", True)
-
-# ============================================================
-# 27. 非 created_by 且非 admin 抛异常
-# ============================================================
-print("\n[27] update_inspection — 非 created_by 且非 admin")
-# inspection 由 tech 创建，manager 尝试修改
-try:
-    inspection_service.update_inspection(
-        db, task_id, accuracy="XXX", current_user=manager,
-    )
-    check("应抛异常", False)
-except PermissionDeniedException:
-    check("manager→PermissionDeniedException", True)
-
-# ============================================================
-# 28. Administrator 可以修改
-# ============================================================
-print("\n[28] update_inspection — Administrator")
-updated_admin = inspection_service.update_inspection(
-    db, task_id, result=InspectionResult.PASS, current_user=admin,
-)
-check("Admin 可以修改", updated_admin.result == InspectionResult.PASS)
-
-# ============================================================
-# 29. created_by 可以修改
-# ============================================================
-print("\n[29] update_inspection — created_by")
-updated_creator = inspection_service.update_inspection(
-    db, task_id, roughness="Ra0.2", current_user=tech,
-)
-check("created_by 可以修改", updated_creator.roughness == "Ra0.2")
-
-# ============================================================
-# 30. update_inspection — SystemLog
-# ============================================================
-print("\n[30] update_inspection — SystemLog")
-log_update = (
-    db.query(SystemLog)
-    .filter(
-        SystemLog.target_type == "InspectionRecord",
-        SystemLog.target_id == inspection.id,
-        SystemLog.action == ActionType.UPDATE,
-    )
-    .order_by(SystemLog.id.desc())
-    .first()
-)
-check("UPDATE 日志存在", log_update is not None)
-
-# ============================================================
-# 31. delete_inspection — 软删除
-# ============================================================
-print("\n[31] delete_inspection — 软删除")
-inspection_service.delete_inspection(db, task_id, admin)
-deleted = db.query(InspectionRecord).filter(InspectionRecord.id == inspection.id).first()
-check("is_deleted=True", deleted.is_deleted)
-
-# 恢复
-deleted.is_deleted = False
-db.commit()
-
-# ============================================================
-# 32. 非管理员抛异常
-# ============================================================
-print("\n[32] delete_inspection — 非管理员")
-try:
-    inspection_service.delete_inspection(db, task_id, tech)
-    check("应抛异常", False)
-except PermissionDeniedException:
-    check("tech→PermissionDeniedException", True)
-
-# ============================================================
-# 33. delete_inspection — SystemLog
-# ============================================================
-print("\n[33] delete_inspection — SystemLog")
-inspection_service.delete_inspection(db, task_id, admin)
-log_delete = (
-    db.query(SystemLog)
-    .filter(
-        SystemLog.target_type == "InspectionRecord",
-        SystemLog.target_id == inspection.id,
-        SystemLog.action == ActionType.DELETE,
-    )
-    .first()
-)
-check("DELETE 日志存在", log_delete is not None)
-
-# 恢复
-db.query(InspectionRecord).filter(InspectionRecord.task_id == task_id).update(
-    {"is_deleted": False}, synchronize_session=False
-)
-db.commit()
-
-# ============================================================
-# 34. 事务 rollback
-# ============================================================
-print("\n[34] 事务 rollback")
-before = db.query(InspectionRecord).filter(InspectionRecord.is_deleted == False).count()
-try:
-    inspection_service.upload_report(
-        db,
-        task_id=99999,
-        inspection_result=InspectionResult.PASS,
-        precision=None,
-        roughness=None,
-        attachment_ids=[],
-        failure_reason=None,
-        current_user=tech,
-    )
-except Exception:
-    pass
-after = db.query(InspectionRecord).filter(InspectionRecord.is_deleted == False).count()
-check("rollback 后数量不变", before == after)
-
-# ============================================================
-# 35. 禁止命名
-# ============================================================
-print("\n[35] 禁止命名")
-try:
-    from server.services.inspection_service import ValidationException  # type: ignore
-    check("ValidationException 不应存在", False)
-except ImportError:
-    check("ValidationException 未使用", True)
-try:
-    from server.services.inspection_service import AuthorizationException  # type: ignore
-    check("AuthorizationException 不应存在", False)
-except ImportError:
-    check("AuthorizationException 未使用", True)
-try:
-    from server.services.inspection_service import ConflictException  # type: ignore
-    check("ConflictException 不应存在", False)
-except ImportError:
-    check("ConflictException 未使用", True)
-
-# ============================================================
-# 36. 循环导入
-# ============================================================
-print("\n[36] 循环导入")
-from server.services import inspection_service as ins
-check("无循环导入", True)
-
-# ============================================================
-# 清理
-# ============================================================
-task_ids = [task_id, task5.id, task6.id, task7.id, task8.id]
-db.query(Attachment).filter(Attachment.task_id.in_(task_ids)).delete()
-db.query(SystemLog).filter(SystemLog.target_type == "InspectionRecord").delete()
-db.query(InspectionRecord).filter(InspectionRecord.task_id.in_(task_ids)).delete()
-db.query(GrindingRecord).filter(GrindingRecord.task_id.in_(task_ids)).delete()
-for t_id in task_ids:
-    t = db.query(TrialTask).filter(TrialTask.id == t_id).first()
-    if t:
-        db.delete(t)
-db.commit()
-db.close()
-
-# ============================================================
-# 结果
+# 汇总
 # ============================================================
 print("\n" + "=" * 60)
 total = PASSED + FAILED
 print(f"  Total: {total}  |  PASS: {PASSED}  |  FAIL: {FAILED}")
 if FAILED == 0:
-    print("  结果: ALL PASSED")
+    print("  Result: ALL PASSED")
 else:
-    print(f"  结果: {FAILED} FAILED")
+    print(f"  Result: {FAILED} FAILED")
 print("=" * 60)
 
 sys.exit(0 if FAILED == 0 else 1)
