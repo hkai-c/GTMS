@@ -2429,6 +2429,14 @@ Widget 开发完成后必须执行：
 
 之后方可进入 View 开发。如需新增规则，应统一更新本文档，对所有 Widget 保持一致。
 
+#### 15.6.22 Standard Upload Widget Principle
+
+1. 所有文件上传页面必须复用 FileUploader。
+2. View 不得直接调用 QFileDialog。
+3. View 不得自行实现上传按钮。
+4. 上传相关 UI 统一由 FileUploader 提供。
+5. 后续所有上传场景（Receipt、Grinding、Inspection、Report、Attachment 等）必须复用该组件。
+
 ### 15.7 CRUD 页面开发规范 (CRUD View Development Standard)
 
 > **自 Sprint 5 起生效。所有 CRUD 页面统一遵循本规范。**
@@ -2796,6 +2804,1190 @@ LOGGER_NAME = "gtms.client"
 - 统一 Widget 复用
 
 保证后续新增页面无需重新设计开发规范。
+
+### 15.8 Upload & File Management Development Standard
+
+#### 15.8.1 设计目标 (Design Goal)
+
+统一 GTMS 文件上传、图片管理、文件存储、预览及下载开发规范，保证所有上传相关模块遵循统一架构、统一接口、统一命名、统一校验、统一日志、统一异常处理，避免重复实现。
+
+---
+
+#### 15.8.2 单一职责 (Single Responsibility)
+
+各层职责如下：
+
+- Upload Router：仅负责 HTTP 上传接口。
+- Server Service：负责业务逻辑、数据库更新、状态流转。
+- Desktop Service：仅负责 HTTP 请求封装。
+- FileUploader：仅负责文件选择、上传交互。
+- ImageViewer：仅负责图片展示。
+- View：负责调用 Widget 与 Desktop Service。
+
+禁止跨层承担职责。
+
+---
+
+#### 15.8.3 分层职责 (Layer Responsibility)
+
+统一依赖关系：
+
+Server
+↓
+Desktop Service
+↓
+Widget
+↓
+View
+↓
+MainWindow
+
+禁止：
+
+- Widget 调用 Server
+- View 操作数据库
+- Desktop Service 实现业务逻辑
+- Router 更新数据库
+
+---
+
+#### 15.8.4 Upload Router 规范
+
+Upload Router：
+
+负责：
+
+- 接收上传请求
+- 保存文件
+- 返回文件信息
+
+不得：
+
+- 更新数据库
+- 修改业务状态
+- 实现业务规则
+- 调用 ORM 业务逻辑
+
+---
+
+#### 15.8.5 Server Service 规范
+
+Server Service：
+
+负责：
+
+- 文件与业务对象绑定
+- 更新数据库
+- 状态流转
+- 日志记录
+- 权限检查
+- 事务控制
+
+所有业务规则统一由 Service 实现。
+
+---
+
+#### 15.8.6 Desktop Service 规范
+
+Desktop Service：
+
+仅负责：
+
+- HTTP 请求
+- 参数构造
+- response.json() 返回
+
+不得：
+
+- 文件操作
+- 业务逻辑
+- 缓存
+- 数据校验
+
+---
+
+#### 15.8.7 FileUploader Widget 规范
+
+FileUploader：
+
+负责：
+
+- 文件选择
+- 上传按钮
+- 上传进度（如需要）
+- Signal 发出
+
+不得：
+
+- 调用数据库
+- 实现业务逻辑
+- 修改状态
+- 保存文件
+
+保持 Pure UI。
+
+---
+
+#### 15.8.8 ImageViewer Widget 规范
+
+ImageViewer：
+
+负责：
+
+- 图片显示
+- 缩放
+- 自适应
+- 滚动浏览
+
+不得：
+
+- 上传图片
+- 删除图片
+- 修改数据库
+
+保持 Pure UI。
+
+---
+
+#### 15.8.9 View 集成规范
+
+View：
+
+负责：
+
+- 调用 Desktop Service
+- 调用 FileUploader
+- 调用 ImageViewer
+- QMessageBox 提示异常
+
+不得：
+
+- 操作文件系统
+- 实现上传业务逻辑
+
+---
+
+#### 15.8.10 文件命名规范
+
+统一命名格式：
+
+{task_no}_{module}_{timestamp}.{ext}
+
+例如：
+
+20260708-1_receipt_20260708153020.jpg
+
+module：
+
+- receipt
+- grinding
+- inspection
+- report
+- attachment
+
+禁止随意命名。
+
+---
+
+#### 15.8.11 存储目录规范
+
+统一目录：
+
+uploads/
+
+按模块分类：
+
+uploads/receipt/
+
+uploads/grinding/
+
+uploads/inspection/
+
+uploads/report/
+
+uploads/attachment/
+
+禁止 View 自行拼接路径。
+
+---
+
+#### 15.8.12 文件类型校验规范
+
+必须进行：
+
+- MIME Type 校验
+- 扩展名校验
+
+图片允许：
+
+- jpg
+- jpeg
+- png
+
+其他类型必须明确允许。
+
+---
+
+#### 15.8.13 文件大小限制
+
+默认限制：
+
+图片：
+
+≤10MB
+
+PDF：
+
+≤50MB
+
+其他类型由业务模块单独规定。
+
+---
+
+#### 15.8.14 上传目录配置
+
+上传目录必须统一配置。
+
+禁止：
+
+硬编码路径。
+
+允许：
+
+配置文件统一管理。
+
+---
+
+#### 15.8.15 URL 返回规范
+
+上传成功统一返回：
+
+- filename
+- url
+- content_type
+- size
+
+禁止返回本地磁盘路径。
+
+---
+
+#### 15.8.16 日志规范
+
+统一：
+
+Server：
+
+logging.getLogger("gtms.server")
+
+Desktop：
+
+logging.getLogger("gtms.client")
+
+禁止：
+
+print()
+
+---
+
+#### 15.8.17 异常处理规范
+
+Server：
+
+统一异常体系。
+
+Desktop：
+
+异常原样抛出。
+
+View：
+
+QMessageBox 展示。
+
+Widget：
+
+仅参数校验。
+
+---
+
+#### 15.8.18 安全规范
+
+必须：
+
+- 校验文件类型
+- 校验文件大小
+- 防止非法文件上传
+- 防止路径遍历
+- 不信任客户端文件名
+
+文件名统一由服务器生成。
+
+---
+
+#### 15.8.19 API 冻结
+
+Upload Router
+
+Desktop Upload Service
+
+FileUploader
+
+ImageViewer
+
+Public API 一经冻结：
+
+不得修改：
+
+- 方法名
+- 参数
+- 返回值
+- Signal
+
+只能新增调用。
+
+---
+
+#### 15.8.20 测试要求
+
+至少覆盖：
+
+- py_compile
+- import
+- 上传成功
+- 非法类型
+- 文件大小限制
+- MIME 校验
+- 文件命名
+- URL 返回
+- Widget API
+- Pure UI
+- PEP8
+- Type Hint
+- Docstring
+
+全部 PASS 方可冻结。
+
+---
+
+#### 15.8.21 Upload Mini Freeze Review
+
+每个 Upload 模块完成后必须执行：
+
+Upload Mini Freeze Review。
+
+检查：
+
+- Architecture
+- Dependency
+- API
+- Security
+- Exception
+- Logging
+- Testing
+
+全部 PASS 方可进入下一 Task。
+
+---
+
+#### 15.8.22 Upload Baseline Freeze Review
+
+Sprint Upload 全部完成后必须执行：
+
+Upload Baseline Freeze Review。
+
+检查：
+
+- Upload Router
+- Desktop Service
+- FileUploader
+- ImageViewer
+- View 集成
+
+全部 PASS 方可进入 Sprint Baseline Freeze Review。
+
+---
+
+#### 15.8.23 适用范围 (Scope)
+
+本规范适用于：
+
+- Receipt
+- Grinding
+- Inspection
+- Report
+- Attachment
+- Image Upload
+- Future Upload Modules
+
+以及未来所有涉及文件上传、图片管理、附件管理的模块。
+
+#### 15.8.24 Upload API Response Standard
+
+所有 Upload API 必须统一返回以下结构：
+
+```json
+{
+    "filename": "20260708-1_receipt_20260708153020.jpg",
+    "url": "/uploads/receipt/20260708-1_receipt_20260708153020.jpg",
+    "content_type": "image/jpeg",
+    "size": 856421
+}
+```
+
+字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| filename | string | 服务器生成后的文件名 |
+| url | string | 文件相对访问路径，不包含 Base URL |
+| content_type | string | 文件 MIME Type |
+| size | integer | 文件大小，单位 Byte |
+
+统一要求：
+
+- filename 必须由服务器统一生成。
+- url 必须为相对访问路径，不包含 Base URL。
+- Desktop ApiClient 负责拼接 Base URL。
+- content_type 必须使用标准 MIME Type。
+- size 必须使用 Byte，不得转换为 KB、MB 或字符串。
+
+禁止返回：
+
+- path
+- filepath
+- full_path
+- Windows 本地路径
+- Linux 绝对路径
+- Base URL
+- 任何服务器磁盘路径
+
+如未来需要扩展返回内容（例如 width、height、sha256 等），仅允许新增字段，不得修改或删除现有字段。
+
+本规范适用于：
+
+- Receipt
+- Grinding
+- Inspection
+- Report
+- Attachment
+- Future Upload Modules
+
+以及未来所有 Upload API。
+
+### 15.9 Service Development Standard
+
+#### 15.9.1 Design Goal
+
+Service 是 GTMS 唯一业务逻辑层。
+
+所有业务规则统一在 Server Service 实现，保证：
+
+- 高内聚
+- 低耦合
+- 单一职责
+- 可维护
+- 可测试
+- 可复用
+
+所有业务模块（Customer、TrialTask、Receipt、Grinding、Inspection、Dispatch、Report、User 等）必须遵循本规范。
+
+---
+
+#### 15.9.2 Single Responsibility
+
+Service 仅负责：
+
+- 业务规则
+- 数据校验
+- CRUD
+- 状态流转
+- 数据库事务
+- SystemLog
+- 调用 ORM
+
+不得负责：
+
+- HTTP
+- Router
+- Qt UI
+- Widget
+- View
+- Desktop Service
+- 文件上传
+- 文件下载
+- 图片显示
+
+---
+
+#### 15.9.3 Dependency Rules
+
+允许依赖：
+
+- ORM Model
+- Schema
+- Enum
+- SQLAlchemy Session
+- Core Exceptions
+- Core Security
+- Utils
+- SystemLog
+
+禁止依赖：
+
+- Router
+- FastAPI Request
+- FastAPI Response
+- HTTPException
+- QWidget
+- Desktop Service
+- ApiClient
+- requests
+- httpx
+- PySide6
+
+保持：
+
+Server 独立。
+
+---
+
+#### 15.9.4 Transaction Standard
+
+所有写操作统一采用：
+
+try
+
+↓
+
+commit
+
+↓
+
+except
+
+↓
+
+rollback
+
+↓
+
+raise
+
+禁止：
+
+遗漏 rollback。
+
+禁止：
+
+Router 操作事务。
+
+禁止：
+
+Desktop Service 操作事务。
+
+所有事务统一由 Service 管理。
+
+---
+
+#### 15.9.5 Exception Standard
+
+统一使用项目异常：
+
+- NotFoundException
+- BusinessLogicException
+- ValidationException
+- PermissionDeniedException
+
+禁止：
+
+raise HTTPException
+
+禁止：
+
+raise Exception
+
+Router 负责统一转换为 HTTP Response。
+
+---
+
+#### 15.9.6 Logging Standard
+
+统一：
+
+logging.getLogger("gtms.server")
+
+记录：
+
+- Create
+- Update
+- Delete
+- Status Change
+- Upload Metadata
+- Business Warning
+- Error
+
+禁止：
+
+print()
+
+禁止：
+
+View、Widget、Desktop Service 记录业务日志。
+
+---
+
+#### 15.9.7 SystemLog Standard
+
+所有影响业务数据的操作必须记录 SystemLog：
+
+包括：
+
+- Create
+- Update
+- Delete
+- Status Change
+
+可根据业务需要记录：
+
+- Receipt
+- Grinding
+- Inspection
+- Dispatch
+
+禁止：
+
+View
+
+Widget
+
+Desktop Service
+
+直接写入 SystemLog。
+
+统一：
+
+Server Service。
+
+---
+
+#### 15.9.8 Status Flow Standard
+
+所有状态变更必须通过统一状态机。
+
+禁止：
+
+直接修改状态字段。
+
+必须：
+
+使用统一状态流转规则（如 next_statuses）。
+
+非法状态流转统一抛出：
+
+BusinessLogicException。
+
+所有业务模块必须遵循统一状态流转机制。
+
+---
+
+#### 15.9.9 CRUD Standard
+
+所有 CRUD 方法保持统一命名：
+
+- create_xxx()
+- get_xxx()
+- list_xxx()
+- update_xxx()
+- delete_xxx()
+
+保持：
+
+Customer
+
+TrialTask
+
+Receipt
+
+Grinding
+
+Inspection
+
+Dispatch
+
+Report
+
+全部一致。
+
+---
+
+#### 15.9.10 File Responsibility Standard
+
+Service 不负责文件保存。
+
+Service 仅负责：
+
+- 文件元数据保存
+- 文件元数据更新
+- 文件元数据删除
+- 上传成功后的业务处理
+
+文件实际保存统一由：
+
+Upload Router
+
+FileHandler
+
+负责。
+
+禁止：
+
+Service 操作磁盘。
+
+禁止：
+
+Service 保存 UploadFile。
+
+禁止：
+
+Service 保存 Base64。
+
+禁止：
+
+Service 保存 Binary。
+
+---
+
+#### 15.9.11 Upload Metadata Standard
+
+Service 接收 Upload API 返回的数据：
+
+包括：
+
+- filename
+- url
+- content_type
+- size
+
+不得依赖：
+
+磁盘路径
+
+Windows Path
+
+Linux Absolute Path
+
+Upload API 返回结构统一遵循：
+
+§15.8.24 Upload API Response Standard。
+
+---
+
+#### 15.9.12 Data Source Standard
+
+Service 是数据库唯一访问入口。
+
+允许：
+
+ORM
+
+Session
+
+Database
+
+禁止：
+
+View
+
+Widget
+
+Desktop Service
+
+直接访问数据库。
+
+---
+
+#### 15.9.13 Public API Standard
+
+所有公开方法：
+
+必须：
+
+Type Hint
+
+Google Docstring
+
+保持最小公开 API。
+
+私有辅助方法统一：
+
+以下划线开头。
+
+---
+
+#### 15.9.14 Naming Standard
+
+统一命名：
+
+create_xxx
+
+update_xxx
+
+delete_xxx
+
+list_xxx
+
+get_xxx
+
+禁止：
+
+process()
+
+handle()
+
+execute()
+
+run()
+
+等语义不明确的方法名。
+
+---
+
+#### 15.9.15 Code Style
+
+统一：
+
+PEP8
+
+Type Hint
+
+Google Docstring
+
+snake_case
+
+Import 排序
+
+禁止：
+
+TODO
+
+FIXME
+
+Magic Number
+
+Magic String
+
+---
+
+#### 15.9.16 Testing Standard
+
+所有 Service 必须覆盖：
+
+- CRUD
+- Transaction
+- Exception
+- Status Flow
+- Pagination
+- Search
+- Permission
+- Soft Delete
+- Upload Metadata（如适用）
+
+所有测试必须：
+
+100% PASS。
+
+---
+
+#### 15.9.17 Public API Freeze
+
+每个 Service 完成后必须执行：
+
+Service Mini Freeze Review。
+
+Review 通过后：
+
+公开 API 冻结。
+
+禁止：
+
+修改：
+
+方法名称
+
+参数
+
+返回值
+
+函数签名
+
+仅允许：
+
+新增调用。
+
+---
+
+#### 15.9.18 Service Baseline Freeze
+
+所有 Service 完成后必须执行：
+
+Service Baseline Freeze Review。
+
+Review 内容包括：
+
+- Architecture
+- Dependency
+- CRUD
+- Transaction
+- Exception
+- Logging
+- SystemLog
+- Status Flow
+- Upload Metadata（如适用）
+- Testing
+- Frozen API
+
+Review 通过后：
+
+Service Layer 正式冻结。
+
+---
+
+#### 15.9.19 Scope
+
+本规范适用于：
+
+- CustomerService
+- UserService
+- TrialTaskService
+- ReceiptService
+- GrindingService
+- InspectionService
+- DispatchService
+- ReportService
+
+以及未来所有 Server Service。
+
+#### 15.9.20 Performance Standard
+
+所有 Service 应遵循性能优先原则，在保证代码可读性和可维护性的前提下，避免产生不必要的数据库、网络或文件系统开销。
+
+##### 查询规范
+
+所有列表查询必须支持分页。
+
+禁止一次性查询全部数据。
+
+统一使用：
+
+- page
+- page_size
+
+进行分页。
+
+默认分页大小应使用统一常量配置。
+
+---
+
+##### 查询条件规范
+
+列表查询应优先支持：
+
+- Keyword
+- Status
+- Date Range
+- Sorting
+
+禁止在 Python 内存中进行大规模过滤。
+
+应优先使用数据库查询完成过滤。
+
+---
+
+##### 数据加载规范
+
+列表接口仅返回列表展示所需字段。
+
+详情接口返回完整数据。
+
+禁止列表接口返回大量无用字段。
+
+避免重复查询同一数据。
+
+---
+
+##### 排序规范
+
+所有列表接口应支持统一排序。
+
+默认按照：
+
+创建时间倒序。
+
+排序字段必须明确指定。
+
+禁止依赖数据库默认排序。
+
+---
+
+##### 数据库访问规范
+
+所有数据库访问统一通过 ORM。
+
+禁止直接拼接 SQL。
+
+禁止重复创建 Session。
+
+禁止跨 Service 操作数据库。
+
+数据库连接统一由依赖注入管理。
+
+---
+
+##### 文件处理规范
+
+Service 不负责：
+
+- 文件上传
+- 文件下载
+- 图片压缩
+- 图片缩放
+- 文件复制
+- 文件移动
+
+所有文件操作统一由：
+
+Upload Router
+
+FileHandler
+
+负责。
+
+Service 仅处理文件元数据。
+
+---
+
+##### 循环与计算规范
+
+禁止在循环内执行数据库查询。
+
+禁止在循环内重复创建对象。
+
+对于批量数据，应尽量减少重复计算。
+
+避免 O(n²) 以上复杂度的数据处理。
+
+---
+
+##### 网络访问规范
+
+Service 禁止：
+
+- requests
+- httpx
+- urllib
+
+所有 HTTP 通信统一由：
+
+Router
+
+Desktop Service
+
+ApiClient
+
+负责。
+
+---
+
+##### 日志规范
+
+日志应记录关键业务信息。
+
+禁止输出大量调试日志。
+
+禁止在循环内频繁记录日志。
+
+Error 日志应包含必要上下文。
+
+---
+
+##### 内存使用规范
+
+避免长期持有大量对象。
+
+避免缓存数据库实体。
+
+避免在内存中保存大文件。
+
+仅保存当前业务所需数据。
+
+---
+
+##### 可扩展性原则
+
+所有 Service 应支持：
+
+- 数据量增长
+- 模块扩展
+- 新增查询条件
+- 新增排序字段
+- 新增分页策略
+
+不得因业务规模扩大而需要重构整体架构。
+
+---
+
+##### 禁止事项
+
+禁止：
+
+- 查询全表后再过滤
+- 无分页列表接口
+- 在 Service 中执行文件读写
+- 在 Service 中执行 HTTP 请求
+- 在循环内频繁查询数据库
+- 返回超过业务需要的数据
+- 重复创建数据库连接
+- 使用 Magic Number 控制分页
+
+---
+
+##### 适用范围
+
+本规范适用于：
+
+- CustomerService
+- UserService
+- TrialTaskService
+- ReceiptService
+- GrindingService
+- InspectionService
+- DispatchService
+- ReportService
+
+以及未来所有 Server Service。
+
+### 15.10 Desktop Service Development Standard
+
+它将统一规范：
+
+client/services/*.py
+ApiClient 调用方式
+HTTP 封装
+Query 参数
+Body 参数
+错误处理
+日志
+Public API Freeze
+Mini Freeze
+Desktop Service Baseline Freeze
+
+这样你的规范体系就会覆盖整个 GTMS 架构：
+
+Server（Service）
+Desktop（Desktop Service）
+Widget
+View
+CRUD
+Upload
 
 ---
 

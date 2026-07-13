@@ -1,7 +1,7 @@
 """
 server.schemas 包
 
-Sprint 3 — Task 3.1 / Sprint 4 — Task 4.1 / Sprint 5 — Task 5.1
+Sprint 3 — Task 3.1 / Sprint 4 — Task 4.1 / Sprint 5 — Task 5.1 / Sprint 6 — Task 6.1
 GTMS Pydantic Schema 层，用于 API 请求/响应序列化。
 
 包含:
@@ -9,6 +9,7 @@ GTMS Pydantic Schema 层，用于 API 请求/响应序列化。
     - role_schema:           角色相关 Schema（RoleResponse, PermissionResponse 等）
     - customer_schema:       客户相关 Schema（CustomerCreate, CustomerResponse 等）
     - trial_task_schema:     试磨任务相关 Schema（TrialTaskCreate, TrialTaskResponse 等）
+    - receipt_schema:        收件记录相关 Schema（ReceiptCreate, ReceiptResponse 等）
 """
 
 from server.schemas.user_schema import (
@@ -32,6 +33,13 @@ from server.schemas.customer_schema import (
     CustomerUpdate,
     CustomerResponse,
     CustomerListResponse,
+)
+from server.schemas.receipt_schema import (
+    ReceiptBase,
+    ReceiptCreate,
+    ReceiptUpdate,
+    ReceiptResponse,
+    ReceiptListResponse,
 )
 from server.schemas.trial_task_schema import (
     TrialTaskBase,
@@ -61,6 +69,12 @@ __all__ = [
     "CustomerUpdate",
     "CustomerResponse",
     "CustomerListResponse",
+    # Receipt
+    "ReceiptBase",
+    "ReceiptCreate",
+    "ReceiptUpdate",
+    "ReceiptResponse",
+    "ReceiptListResponse",
     # TrialTask
     "TrialTaskBase",
     "TrialTaskCreate",
