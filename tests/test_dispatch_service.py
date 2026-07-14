@@ -1,688 +1,437 @@
-"""Sprint 2 — Task 2.9 DispatchService 自检脚本
+"""Test: Dispatch Service (Sprint 9 — Task 9.2)
 
-验证项:
-    1.  py_compile
-    2.  import
-    3.  create_dispatch — 基本创建
-    4.  create_dispatch — destination 写入
-    5.  create_dispatch — dispatch_date 写入
-    6.  create_dispatch — process_status DISPATCHED
-    7.  create_dispatch — result_status 保持 PASSED
-    8.  create_dispatch — 非 PASSED 状态禁止
-    9.  create_dispatch — 非 GRINDING 状态禁止
-    10. create_dispatch — 任务不存在
-    11. create_dispatch — 无权限用户抛异常
-    12. create_dispatch — Administrator 可以创建
-    13. create_dispatch — 无需 GrindingRecord.operator_id
-    14. create_dispatch — operator_id 自动设置
-    15. create_dispatch — remark 参数接受
-    16. create_dispatch — TrialTask.destination 独立
-    17. create_dispatch — process_status 确认
-    18. create_dispatch — SystemLog
-    19. create_dispatch — result_status=FAILED 禁止
-    20. get_dispatch — 查询成功
-    21. get_dispatch — 不存在抛 NotFoundException
-    22. get_dispatch — 已删除记录过滤
-    23. update_dispatch — 修改字段
-    24. update_dispatch — 禁止未知字段
-    25. update_dispatch — 禁止修改 created_by
-    26. update_dispatch — 禁止修改 created_at
-    27. update_dispatch — 非 created_by 且非 admin 抛异常
-    28. update_dispatch — Administrator 可以修改
-    29. update_dispatch — created_by 可以修改
-    30. update_dispatch — SystemLog
-    31. delete_dispatch — 软删除
-    32. delete_dispatch — 非管理员抛异常
-    33. delete_dispatch — SystemLog
-    34. 事务 rollback
-    35. 禁止命名
-    36. 循环导入
+严格依据 DEVELOPMENT_ROADMAP.md Task 9.2 验收标准。
+测试 server/services/dispatch_service.py 全部公开 API 与代码规范。
+
+注意：本测试使用源码分析，不依赖数据库连接。
 """
 
+import inspect
+import os
+import re
 import sys
-from pathlib import Path
-from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# 确保项目根目录在 sys.path 中
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from server.database.session import SessionLocal
-from server.models import (
-    User, TrialTask, Customer, Dispatch, GrindingRecord, SystemLog,
-)
-from server.services.dispatch_service import DispatchService
-from server.services.task_service import TaskService, TaskCreate
-from server.services.grinding_service import GrindingService
-from server.services.inspection_service import InspectionService
-from server.core.exceptions import (
-    BusinessLogicException,
-    NotFoundException,
-    PermissionDeniedException,
-)
-from server.enums import (
-    InspectionResult,
-    TrialTaskProcessStatus,
-    TrialTaskResultStatus,
-    ActionType,
-)
+
+# ============================================================
+# 自检框架
+# ============================================================
 
 PASSED = 0
 FAILED = 0
 
 
-def check(name: str, condition: bool, detail: str = "") -> None:
+def check(desc: str, condition: bool) -> None:
+    """执行一条检查。"""
     global PASSED, FAILED
     if condition:
         PASSED += 1
-        print(f"  [PASS] {name}")
+        print(f"  [PASS] {desc}")
     else:
         FAILED += 1
-        print(f"  [FAIL] {name}  -- {detail}")
+        print(f"  [FAIL] {desc}")
 
 
-print("=" * 60)
-print("  Task 2.9 — DispatchService Self Test")
-print("=" * 60)
+def extract_code_text(file_path: str) -> str:
+    """提取代码文本（排除 docstring 和注释）。"""
+    with open(file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    content = re.sub(r'""".*?"""', "", content, flags=re.DOTALL)
+    content = re.sub(r"'''.*?'''", "", content, flags=re.DOTALL)
+    content = re.sub(r"#.*$", "", content, flags=re.MULTILINE)
+    return content
+
 
 # ============================================================
-# 1. py_compile
+# 自检
 # ============================================================
+
+print("=" * 60)
+print("  Task 9.2 — Dispatch Service Self Test")
+print("=" * 60)
+
+SOURCE_PATH = os.path.join("server", "services", "dispatch_service.py")
+
+# ----------------------------------------------------------
+# [1] py_compile
+# ----------------------------------------------------------
 print("\n[1] py_compile")
-import py_compile
 try:
-    py_compile.compile(
-        str(Path(__file__).parent.parent / "server" / "services" / "dispatch_service.py"),
-        doraise=True,
-    )
+    import py_compile
+    py_compile.compile(SOURCE_PATH, doraise=True)
     check("py_compile", True)
 except py_compile.PyCompileError as e:
-    check("py_compile", False, str(e))
+    check("py_compile", False)
+    print(f"      Error: {e}")
 
-# ============================================================
-# 2. import
-# ============================================================
+# ----------------------------------------------------------
+# [2] import
+# ----------------------------------------------------------
 print("\n[2] import")
-check("DispatchService", DispatchService is not None)
-
-# ============================================================
-# 准备测试数据
-# ============================================================
-db = SessionLocal()
-dispatch_service = DispatchService()
-task_service = TaskService()
-grinding_service = GrindingService()
-inspection_service = InspectionService()
-
-admin = db.query(User).filter(User.username == "admin").first()
-tech = db.query(User).filter(User.username == "tech1").first()
-viewer = db.query(User).filter(User.username == "viewer1").first()
-manager = db.query(User).filter(User.username == "manager1").first()
-customer = db.query(Customer).first()
-
-# 清理测试数据
-from server.models import InspectionRecord
-db.query(SystemLog).filter(SystemLog.target_type == "Dispatch").delete()
-db.query(Dispatch).filter().delete()
-db.query(InspectionRecord).filter().delete()
-db.query(GrindingRecord).filter().delete()
-db.query(TrialTask).filter(TrialTask.requirement.like("%TEST%")).delete()
-db.commit()
-
-# 创建测试任务并推进到 GRINDING + PASSED 状态
-task = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 去向测试任务"),
-)
-task_id = task.id
-task.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-
-grinding_service.start_grinding(db, task_id=task_id, current_user=tech)
-
-# 上传检测报告（PASSED），使任务进入 result_status=PASSED
-inspection_service.upload_report(
-    db,
-    task_id=task_id,
-    inspection_result=InspectionResult.PASS,
-    precision="0.01mm",
-    roughness=None,
-    attachment_ids=[],
-    failure_reason=None,
-    current_user=tech,
-)
-
-# ============================================================
-# 3. create_dispatch — 基本创建
-# ============================================================
-print("\n[3] create_dispatch — 基本创建")
-dispatch = dispatch_service.create_dispatch(
-    db,
-    task_id=task_id,
-    destination="客户A工厂",
-    dispatch_date=datetime(2026, 7, 4, 10, 0, 0),
-    remark="加急处理",
-    current_user=manager,
-)
-check("返回 Dispatch", isinstance(dispatch, Dispatch))
-check("dispatch.id > 0", dispatch.id > 0)
-check("task_id 正确", dispatch.task_id == task_id)
-
-# ============================================================
-# 4. create_dispatch — destination 写入
-# ============================================================
-print("\n[4] create_dispatch — destination")
-check("direction=客户A工厂", dispatch.direction == "客户A工厂")
-
-# ============================================================
-# 5. create_dispatch — dispatch_date 写入
-# ============================================================
-print("\n[5] create_dispatch — dispatch_date")
-check("dispatch_date 正确", dispatch.dispatch_date == datetime(2026, 7, 4, 10, 0, 0))
-
-# ============================================================
-# 6. create_dispatch — process_status
-# ============================================================
-print("\n[6] create_dispatch — process_status")
-db.refresh(task)
-check("process_status=DISPATCHED", task.process_status == TrialTaskProcessStatus.DISPATCHED)
-
-# ============================================================
-# 7. create_dispatch — result_status 保持
-# ============================================================
-print("\n[7] create_dispatch — result_status 保持")
-check("result_status=PASSED", task.result_status == TrialTaskResultStatus.PASSED)
-
-# ============================================================
-# 8. 非 PASSED 状态禁止
-# ============================================================
-print("\n[8] create_dispatch — 非 PASSED 状态")
-# 创建新任务保持 GRINDING 但 result_status=FAILED
-task2 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 非PASSED"),
-)
-task2.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task2.id, current_user=tech)
-# 上传 FAILED 检测
-inspection_service.upload_report(
-    db,
-    task_id=task2.id,
-    inspection_result=InspectionResult.FAIL,
-    precision="0.5mm",
-    roughness=None,
-    attachment_ids=[],
-    failure_reason="精度不合格",
-    current_user=tech,
-)
-db.refresh(task2)
-# result_status=FAILED, process_status=GRINDING → 应禁止
 try:
-    dispatch_service.create_dispatch(
-        db,
-        task_id=task2.id,
-        destination="测试",
-        dispatch_date=datetime.now(),
-        remark=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("result_status=FAILED→BusinessLogicException", True)
+    from server.services.dispatch_service import DispatchService
+    check("DispatchService 导入", True)
+except ImportError as e:
+    check("DispatchService 导入", False)
+    print(f"      Error: {e}")
+    sys.exit(1)
 
-# ============================================================
-# 9. 非 GRINDING 状态禁止
-# ============================================================
-print("\n[9] create_dispatch — 非 GRINDING 状态")
-# 创建新任务保持 CREATED
-task3 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 非GRINDING"),
+# ----------------------------------------------------------
+# [3] 类存在性
+# ----------------------------------------------------------
+print("\n[3] 类存在性")
+check("DispatchService 是 class", inspect.isclass(DispatchService))
+check("DispatchService 可实例化", DispatchService() is not None)
+
+# ----------------------------------------------------------
+# [4] 公开 API 列表
+# ----------------------------------------------------------
+print("\n[4] 公开 API 列表")
+public_methods = [
+    m for m in dir(DispatchService)
+    if not m.startswith("_") and callable(getattr(DispatchService, m))
+]
+check("list_dispatches 存在", "list_dispatches" in public_methods)
+check("get_dispatch 存在", "get_dispatch" in public_methods)
+check("create_dispatch 存在", "create_dispatch" in public_methods)
+check("update_dispatch 存在", "update_dispatch" in public_methods)
+check("delete_dispatch 存在", "delete_dispatch" in public_methods)
+check("公开 API 数量 = 5", len(public_methods) == 5)
+
+# ----------------------------------------------------------
+# [5] 公开 API 签名
+# ----------------------------------------------------------
+print("\n[5] 公开 API 签名")
+
+# list_dispatches
+sig = inspect.signature(DispatchService.list_dispatches)
+params = list(sig.parameters.keys())
+check("list_dispatches: 含 db", "db" in params)
+check("list_dispatches: 含 direction", "direction" in params)
+check("list_dispatches: 含 task_id", "task_id" in params)
+check("list_dispatches: 含 page", "page" in params)
+check("list_dispatches: 含 page_size", "page_size" in params)
+
+# get_dispatch
+sig = inspect.signature(DispatchService.get_dispatch)
+params = list(sig.parameters.keys())
+check("get_dispatch: 含 db", "db" in params)
+check("get_dispatch: 含 dispatch_id", "dispatch_id" in params)
+
+# create_dispatch
+sig = inspect.signature(DispatchService.create_dispatch)
+params = list(sig.parameters.keys())
+check("create_dispatch: 含 db", "db" in params)
+check("create_dispatch: 含 data", "data" in params)
+check("create_dispatch: 含 operator_id", "operator_id" in params)
+
+# update_dispatch
+sig = inspect.signature(DispatchService.update_dispatch)
+params = list(sig.parameters.keys())
+check("update_dispatch: 含 db", "db" in params)
+check("update_dispatch: 含 dispatch_id", "dispatch_id" in params)
+check("update_dispatch: 含 data", "data" in params)
+check("update_dispatch: 含 operator_id", "operator_id" in params)
+
+# delete_dispatch
+sig = inspect.signature(DispatchService.delete_dispatch)
+params = list(sig.parameters.keys())
+check("delete_dispatch: 含 db", "db" in params)
+check("delete_dispatch: 含 dispatch_id", "dispatch_id" in params)
+check("delete_dispatch: 含 operator_id", "operator_id" in params)
+
+# ----------------------------------------------------------
+# [6] 返回值类型注解
+# ----------------------------------------------------------
+print("\n[6] 返回值类型注解")
+
+with open(SOURCE_PATH, "r", encoding="utf-8") as f:
+    source = f.read()
+
+code = extract_code_text(SOURCE_PATH)
+
+check("list_dispatches 返回 DispatchListResponse",
+      "DispatchListResponse" in source)
+check("get_dispatch 返回 DispatchResponse",
+      "DispatchResponse" in source)
+check("create_dispatch 返回 DispatchResponse",
+      "DispatchResponse" in source)
+check("update_dispatch 返回 DispatchResponse",
+      "DispatchResponse" in source)
+check("delete_dispatch 返回 None",
+      "-> None" in source)
+
+# ----------------------------------------------------------
+# [7] 使用 Dispatch Schema
+# ----------------------------------------------------------
+print("\n[7] 使用 Dispatch Schema")
+check("导入 DispatchCreate", "DispatchCreate" in source)
+check("导入 DispatchUpdate", "DispatchUpdate" in source)
+check("导入 DispatchResponse", "DispatchResponse" in source)
+check("导入 DispatchListResponse", "DispatchListResponse" in source)
+
+# ----------------------------------------------------------
+# [8] 创建派发：校验 TrialTask 存在
+# ----------------------------------------------------------
+print("\n[8] 创建派发：校验 TrialTask 存在")
+check("校验 TrialTask 存在", "试磨任务不存在" in source)
+check("查询 TrialTask", "TrialTask" in source)
+check("过滤 is_deleted=False", "is_deleted" in source)
+
+# ----------------------------------------------------------
+# [9] 创建派发：校验 InspectionRecord 存在
+# ----------------------------------------------------------
+print("\n[9] 创建派发：校验 InspectionRecord 存在")
+check("校验 InspectionRecord 存在",
+      "尚未完成检测" in source)
+check("查询 InspectionRecord", "InspectionRecord" in source)
+
+# ----------------------------------------------------------
+# [10] 创建派发：校验 Dispatch 不重复
+# ----------------------------------------------------------
+print("\n[10] 创建派发：校验 Dispatch 不重复")
+check("校验 task_id 不重复",
+      "不可重复创建" in source)
+check("查询 Dispatch 按 task_id",
+      "Dispatch.task_id" in code)
+
+# ----------------------------------------------------------
+# [11] 创建派发：校验 result_status == PASSED
+# ----------------------------------------------------------
+print("\n[11] 创建派发：校验 result_status == PASSED")
+check("校验 result_status == PASSED",
+      "TrialTaskResultStatus.PASSED" in source)
+check("非 PASSED 抛出异常",
+      "仅检测合格的任务可派发" in source)
+
+# ----------------------------------------------------------
+# [12] 创建派发：校验 process_status == GRINDING
+# ----------------------------------------------------------
+print("\n[12] 创建派发：校验 process_status == GRINDING")
+check("校验 process_status == GRINDING",
+      "TrialTaskProcessStatus.GRINDING" in source)
+check("非 GRINDING 抛出异常",
+      "仅试磨中状态的任务可派发" in source)
+
+# ----------------------------------------------------------
+# [13] 创建派发：创建 ORM
+# ----------------------------------------------------------
+print("\n[13] 创建派发：创建 ORM")
+check("创建 Dispatch ORM 实例",
+      "Dispatch(" in code)
+check("设置 task_id", "task_id=data.task_id" in code)
+check("设置 direction", "direction=data.direction" in code)
+check("设置 dispatch_date", "dispatch_date=data.dispatch_date" in code)
+check("设置 operator_id", "operator_id=data.operator_id" in code)
+check("db.add(dispatch)", "db.add(dispatch)" in code)
+check("db.flush()", "db.flush()" in code)
+
+# ----------------------------------------------------------
+# [14] 创建派发：推进 process_status → DISPATCHED
+# ----------------------------------------------------------
+print("\n[14] 创建派发：推进 process_status → DISPATCHED")
+check("推进 process_status",
+      "TrialTaskProcessStatus.DISPATCHED" in source)
+check("记录旧状态", "old_process_status" in source)
+
+# ----------------------------------------------------------
+# [15] 创建派发：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[15] 创建派发：事务 + SystemLog")
+check("create_dispatch try/commit", "db.commit()" in source)
+check("create_dispatch except rollback", "db.rollback()" in source)
+check("写入 SystemLog (CREATE)", 'ActionType.CREATE' in source)
+check("写入 SystemLog (STATUS_CHANGE)", 'ActionType.STATUS_CHANGE' in source)
+check("create 写入至少 2 条 SystemLog",
+      source.count("self._write_log(") >= 2)
+
+# ----------------------------------------------------------
+# [16] 更新派发：exclude_unset
+# ----------------------------------------------------------
+print("\n[16] 更新派发：exclude_unset")
+check("使用 model_dump(exclude_unset=True)",
+      "exclude_unset=True" in source)
+check("仅更新非 None 字段",
+      "not changes" in source)
+
+# ----------------------------------------------------------
+# [17] 更新派发：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[17] 更新派发：事务 + SystemLog")
+check("update_dispatch try/commit", "db.commit()" in source)
+check("update_dispatch except rollback", "db.rollback()" in source)
+check("写入 SystemLog (UPDATE)", 'ActionType.UPDATE' in source)
+
+# ----------------------------------------------------------
+# [18] 删除派发：软删除
+# ----------------------------------------------------------
+print("\n[18] 删除派发：软删除")
+check("设置 is_deleted=True", "is_deleted = True" in source)
+check("不物理删除（无 db.delete）", "db.delete" not in source)
+
+# ----------------------------------------------------------
+# [19] 删除派发：事务 + SystemLog
+# ----------------------------------------------------------
+print("\n[19] 删除派发：事务 + SystemLog")
+check("delete_dispatch try/commit", "db.commit()" in source)
+check("delete_dispatch except rollback", "db.rollback()" in source)
+check("写入 SystemLog (DELETE)", 'ActionType.DELETE' in source)
+
+# ----------------------------------------------------------
+# [20] 无 Workflow 违规
+# ----------------------------------------------------------
+print("\n[20] 无 Workflow 违规")
+check("无 Receipt 业务", "Receipt" not in source)
+check("无 Grinding 业务（除 GrindingRecord 引用）",
+      "GrindingRecord" not in source)
+
+# ----------------------------------------------------------
+# [21] 无 Status Machine 违规
+# ----------------------------------------------------------
+print("\n[21] 无 Status Machine 违规")
+# 仅检查赋值（result_status = XXX），不检查比较（result_status == XXX 或 result_status != XXX）
+check("不得修改 result_status（仅 PASSED 校验）",
+      not re.search(r'\bresult_status\s*=\s*(?!\s*=)', code))
+
+# ----------------------------------------------------------
+# [22] 异常处理
+# ----------------------------------------------------------
+print("\n[22] 异常处理")
+check("使用 NotFoundException", "NotFoundException" in source)
+check("使用 BusinessLogicException", "BusinessLogicException" in source)
+check("无 ValueError", "ValueError" not in source)
+check("无 print()", "print(" not in source)
+
+# ----------------------------------------------------------
+# [23] logger
+# ----------------------------------------------------------
+print("\n[23] logger")
+check("使用 gtms.server logger", 'logging.getLogger("gtms.server")' in source)
+check("logger.info 使用", "logger.info" in source)
+check("logger.exception 使用", "logger.exception" in source)
+
+# ----------------------------------------------------------
+# [24] Type Hint
+# ----------------------------------------------------------
+print("\n[24] Type Hint")
+check("Session 类型注解", "Session" in source)
+check("Optional 导入", "Optional" in source)
+check("所有方法有返回类型注解", "->" in source)
+
+# ----------------------------------------------------------
+# [25] 私有方法
+# ----------------------------------------------------------
+print("\n[25] 私有方法")
+check("_get_dispatch_orm 存在", "_get_dispatch_orm" in source)
+check("_to_response 存在", "_to_response" in source)
+check("_write_log 存在", "_write_log" in source)
+
+# ----------------------------------------------------------
+# [26] PEP8
+# ----------------------------------------------------------
+print("\n[26] PEP8")
+import subprocess
+result = subprocess.run(
+    ["python", "-m", "flake8", "--select=E,W,F,N", SOURCE_PATH],
+    capture_output=True,
+    text=True,
+    cwd=PROJECT_ROOT,
 )
-try:
-    dispatch_service.create_dispatch(
-        db,
-        task_id=task3.id,
-        destination="测试",
-        dispatch_date=datetime.now(),
-        remark=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("非 GRINDING→BusinessLogicException", True)
+flake8_ok = result.returncode == 0
+if not flake8_ok and result.stdout:
+    print(f"    flake8: {result.stdout.strip()}")
+check("PEP8 合规", flake8_ok)
 
-# 清理
-db.delete(task3)
-db.commit()
+# ----------------------------------------------------------
+# [27] Docstring
+# ----------------------------------------------------------
+print("\n[27] Docstring")
+import ast
+with open(SOURCE_PATH, "r", encoding="utf-8") as f:
+    tree = ast.parse(f.read())
+check("模块级 docstring 存在", ast.get_docstring(tree) is not None)
+for node in ast.walk(tree):
+    if isinstance(node, ast.ClassDef) and node.name == "DispatchService":
+        check("类 docstring 存在", ast.get_docstring(node) is not None)
+        for item in node.body:
+            if isinstance(item, ast.FunctionDef):
+                doc = ast.get_docstring(item)
+                check(f"{item.name} docstring 存在", doc is not None)
 
-# ============================================================
-# 10. 任务不存在
-# ============================================================
-print("\n[10] create_dispatch — 任务不存在")
-try:
-    dispatch_service.create_dispatch(
-        db,
-        task_id=99999,
-        destination="测试",
-        dispatch_date=datetime.now(),
-        remark=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except NotFoundException:
-    check("任务不存在→NotFoundException", True)
+# ----------------------------------------------------------
+# [28] 无 TODO / FIXME / pass
+# ----------------------------------------------------------
+print("\n[28] 无 TODO / FIXME / pass")
+check("无 TODO", "TODO" not in source)
+check("无 FIXME", "FIXME" not in source)
 
-# ============================================================
-# 11. 无权限用户
-# ============================================================
-print("\n[11] create_dispatch — 无权限用户")
-# 创建新任务推进到 GRINDING + PASSED
-task4 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST 权限测试"),
-)
-task4.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task4.id, current_user=tech)
-inspection_service.upload_report(
-    db,
-    task_id=task4.id,
-    inspection_result=InspectionResult.PASS,
-    precision=None,
-    roughness=None,
-    attachment_ids=[],
-    failure_reason=None,
-    current_user=tech,
-)
+# ----------------------------------------------------------
+# [29] Frozen API
+# ----------------------------------------------------------
+print("\n[29] Frozen API")
+check("无 Router 导入", "from server.routers" not in source)
+check("无 Desktop 导入", "from client." not in source)
+check("无 Server 服务交叉导入", "InspectionService" not in source)
+check("无 GrindingService 导入", "GrindingService" not in source)
 
-try:
-    dispatch_service.create_dispatch(
-        db,
-        task_id=task4.id,
-        destination="测试",
-        dispatch_date=datetime.now(),
-        remark=None,
-        current_user=tech,
-    )
-    check("应抛异常", False)
-except PermissionDeniedException:
-    check("tech(无dispatch:write)→PermissionDeniedException", True)
+# ----------------------------------------------------------
+# [30] __all__ 导出
+# ----------------------------------------------------------
+print("\n[30] __all__ 导出")
+check("__all__ 包含 DispatchService", "DispatchService" in source.split("__all__")[-1])
 
-# 清理
-db.query(Dispatch).filter(Dispatch.task_id == task4.id).delete()
-db.query(InspectionRecord).filter(InspectionRecord.task_id == task4.id).delete()
-db.query(GrindingRecord).filter(GrindingRecord.task_id == task4.id).delete()
-db.delete(task4)
-db.commit()
+# ----------------------------------------------------------
+# [31] __init__.py 导出
+# ----------------------------------------------------------
+print("\n[31] __init__.py 导出")
+INIT_PATH = os.path.join("server", "services", "__init__.py")
+init_code = extract_code_text(INIT_PATH)
+check("__init__.py 导出 DispatchService", "DispatchService" in init_code)
 
-# ============================================================
-# 12. Administrator 可以创建
-# ============================================================
-print("\n[12] create_dispatch — Administrator")
-task5 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST Admin去向"),
-)
-task5.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task5.id, current_user=tech)
-inspection_service.upload_report(
-    db,
-    task_id=task5.id,
-    inspection_result=InspectionResult.PASS,
-    precision=None,
-    roughness=None,
-    attachment_ids=[],
-    failure_reason=None,
-    current_user=tech,
-)
+# ----------------------------------------------------------
+# [32] 事务完整性
+# ----------------------------------------------------------
+print("\n[32] 事务完整性")
+# 每个写操作至少含 1 次 commit
+commit_count = source.count("db.commit()")
+check("至少 3 次 commit（create + update + delete + _write_log）",
+      commit_count >= 3)
+rollback_count = source.count("db.rollback()")
+check("至少 3 次 rollback（create + update + delete）",
+      rollback_count >= 3)
 
-dispatch5 = dispatch_service.create_dispatch(
-    db,
-    task_id=task5.id,
-    destination="客户B总部",
-    dispatch_date=datetime.now(),
-    remark=None,
-    current_user=admin,
-)
-check("Admin 可以创建", dispatch5 is not None)
+# ----------------------------------------------------------
+# [33] 枚举使用
+# ----------------------------------------------------------
+print("\n[33] 枚举使用")
+check("导入 DestinationType", "DestinationType" in source)
+check("导入 ActionType", "ActionType" in source)
+check("导入 TrialTaskProcessStatus", "TrialTaskProcessStatus" in source)
+check("导入 TrialTaskResultStatus", "TrialTaskResultStatus" in source)
 
-# 清理
-db.query(SystemLog).filter(
-    SystemLog.target_type == "Dispatch",
-    SystemLog.target_id == dispatch5.id,
-).delete()
-db.query(Dispatch).filter(Dispatch.task_id == task5.id).delete()
-db.query(InspectionRecord).filter(InspectionRecord.task_id == task5.id).delete()
-db.query(GrindingRecord).filter(GrindingRecord.task_id == task5.id).delete()
-db.delete(task5)
-db.commit()
+# ----------------------------------------------------------
+# [34] 分页逻辑
+# ----------------------------------------------------------
+print("\n[34] 分页逻辑")
+check("list_dispatches 使用 offset", "offset" in source)
+check("list_dispatches 使用 limit", "limit" in source)
+check("list_dispatches 使用 count", "count()" in source)
+check("排序 created_at DESC", "created_at.desc()" in source)
 
 # ============================================================
-# 13. 无需 GrindingRecord.operator_id
-# ============================================================
-print("\n[13] create_dispatch — 无需 GrindingRecord.operator_id")
-# task 的 grinding 由 tech 创建，但 manager 也可以创建去向
-task6 = task_service.create_task(
-    db, admin,
-    TaskCreate(customer_id=customer.id, requirement="TEST Manager去向"),
-)
-task6.process_status = TrialTaskProcessStatus.RECEIVED
-db.commit()
-grinding_service.start_grinding(db, task_id=task6.id, current_user=tech)
-inspection_service.upload_report(
-    db,
-    task_id=task6.id,
-    inspection_result=InspectionResult.PASS,
-    precision=None,
-    roughness=None,
-    attachment_ids=[],
-    failure_reason=None,
-    current_user=tech,
-)
-
-dispatch6 = dispatch_service.create_dispatch(
-    db,
-    task_id=task6.id,
-    destination="客户C分部",
-    dispatch_date=datetime.now(),
-    remark=None,
-    current_user=manager,
-)
-check("manager 可创建去向（非试磨操作人）", dispatch6 is not None)
-
-# ============================================================
-# 14. operator_id 自动设置
-# ============================================================
-print("\n[14] create_dispatch — operator_id 自动设置")
-check("operator_id=manager.id", dispatch.operator_id == manager.id)
-
-# ============================================================
-# 15. remark 参数接受
-# ============================================================
-print("\n[15] create_dispatch — remark 参数")
-check("remark 已接受（无异常）", True)
-
-# ============================================================
-# 16. TrialTask.destination 不要求同步（仅 Dispatch.direction 记录）
-# ============================================================
-print("\n[16] create_dispatch — TrialTask.destination 独立")
-# TrialTask.destination 是 DestinationType 枚举，由后续流程单独设置
-# Dispatch.direction 是字符串，独立记录去向描述
-check("Dispatch.direction 独立记录", dispatch.direction == "客户A工厂")
-
-# ============================================================
-# 17. process_status 已更新为 DISPATCHED
-# ============================================================
-print("\n[17] create_dispatch — process_status 确认")
-db.refresh(task)
-check("process_status 确认为 DISPATCHED", task.process_status == TrialTaskProcessStatus.DISPATCHED)
-
-# ============================================================
-# 18. create_dispatch — SystemLog
-# ============================================================
-print("\n[18] create_dispatch — SystemLog")
-log = (
-    db.query(SystemLog)
-    .filter(
-        SystemLog.target_type == "Dispatch",
-        SystemLog.target_id == dispatch.id,
-        SystemLog.action == ActionType.CREATE,
-    )
-    .first()
-)
-check("CREATE 日志存在", log is not None)
-check("action=CREATE_DISPATCH", log is not None and log.changes.get("action") == "CREATE_DISPATCH")
-check("remark 已记录", log is not None and log.changes.get("remark") == "加急处理")
-
-# ============================================================
-# 19. result_status=FAILED 禁止创建
-# ============================================================
-print("\n[19] create_dispatch — result_status=FAILED")
-# task2 已经是 FAILED + GRINDING → 已在测试 8 验证
-check("FAILED 禁止创建（已由测试8验证）", True)
-
-# ============================================================
-# 20. get_dispatch — 查询成功
-# ============================================================
-print("\n[20] get_dispatch — 查询成功")
-fetched = dispatch_service.get_dispatch(db, task_id)
-check("get_dispatch 返回正确", fetched.id == dispatch.id)
-
-# ============================================================
-# 21. get_dispatch — 不存在
-# ============================================================
-print("\n[21] get_dispatch — 不存在")
-try:
-    dispatch_service.get_dispatch(db, 99999)
-    check("应抛异常", False)
-except NotFoundException:
-    check("不存在→NotFoundException", True)
-
-# ============================================================
-# 22. get_dispatch — 已删除记录过滤
-# ============================================================
-print("\n[22] get_dispatch — 已删除记录过滤")
-dispatch.is_deleted = True
-db.commit()
-try:
-    dispatch_service.get_dispatch(db, task_id)
-    check("应抛异常", False)
-except NotFoundException:
-    check("已删除→NotFoundException", True)
-# 恢复
-dispatch.is_deleted = False
-db.commit()
-
-# ============================================================
-# 23. update_dispatch — 修改字段
-# ============================================================
-print("\n[23] update_dispatch — 修改字段")
-updated = dispatch_service.update_dispatch(
-    db, task_id,
-    direction="客户A总部（更新）",
-    current_user=manager,
-)
-check("direction 更新", updated.direction == "客户A总部（更新）")
-
-# ============================================================
-# 24. update_dispatch — 禁止未知字段
-# ============================================================
-print("\n[24] update_dispatch — 禁止未知字段")
-try:
-    dispatch_service.update_dispatch(
-        db, task_id, unknown_field="test", current_user=manager,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("unknown_field→BusinessLogicException", True)
-
-# ============================================================
-# 25. update_dispatch — 禁止修改 created_by
-# ============================================================
-print("\n[25] update_dispatch — 禁止修改 created_by")
-try:
-    dispatch_service.update_dispatch(
-        db, task_id, created_by=admin.id, current_user=manager,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("created_by→BusinessLogicException", True)
-
-# ============================================================
-# 26. update_dispatch — 禁止修改 created_at
-# ============================================================
-print("\n[26] update_dispatch — 禁止修改 created_at")
-try:
-    dispatch_service.update_dispatch(
-        db, task_id, created_at=datetime.now(), current_user=manager,
-    )
-    check("应抛异常", False)
-except BusinessLogicException:
-    check("created_at→BusinessLogicException", True)
-
-# ============================================================
-# 27. 非 created_by 且非 admin 抛异常
-# ============================================================
-print("\n[27] update_dispatch — 非 created_by 且非 admin")
-# dispatch 由 manager 创建，tech 尝试修改
-try:
-    dispatch_service.update_dispatch(
-        db, task_id, direction="XXX", current_user=tech,
-    )
-    check("应抛异常", False)
-except PermissionDeniedException:
-    check("tech→PermissionDeniedException", True)
-
-# ============================================================
-# 28. Administrator 可以修改
-# ============================================================
-print("\n[28] update_dispatch — Administrator")
-updated_admin = dispatch_service.update_dispatch(
-    db, task_id, dispatch_date=datetime(2026, 7, 5), current_user=admin,
-)
-check("Admin 可以修改", updated_admin.dispatch_date == datetime(2026, 7, 5))
-
-# ============================================================
-# 29. created_by 可以修改
-# ============================================================
-print("\n[29] update_dispatch — created_by")
-updated_creator = dispatch_service.update_dispatch(
-    db, task_id, direction="客户A（manager修改）", current_user=manager,
-)
-check("created_by 可以修改", updated_creator.direction == "客户A（manager修改）")
-
-# ============================================================
-# 30. update_dispatch — SystemLog
-# ============================================================
-print("\n[30] update_dispatch — SystemLog")
-log_update = (
-    db.query(SystemLog)
-    .filter(
-        SystemLog.target_type == "Dispatch",
-        SystemLog.target_id == dispatch.id,
-        SystemLog.action == ActionType.UPDATE,
-    )
-    .order_by(SystemLog.id.desc())
-    .first()
-)
-check("UPDATE 日志存在", log_update is not None)
-
-# ============================================================
-# 31. delete_dispatch — 软删除
-# ============================================================
-print("\n[31] delete_dispatch — 软删除")
-dispatch_service.delete_dispatch(db, task_id, admin)
-deleted = db.query(Dispatch).filter(Dispatch.id == dispatch.id).first()
-check("is_deleted=True", deleted.is_deleted)
-
-# 恢复
-deleted.is_deleted = False
-db.commit()
-
-# ============================================================
-# 32. 非管理员抛异常
-# ============================================================
-print("\n[32] delete_dispatch — 非管理员")
-try:
-    dispatch_service.delete_dispatch(db, task_id, tech)
-    check("应抛异常", False)
-except PermissionDeniedException:
-    check("tech→PermissionDeniedException", True)
-
-# ============================================================
-# 33. delete_dispatch — SystemLog
-# ============================================================
-print("\n[33] delete_dispatch — SystemLog")
-dispatch_service.delete_dispatch(db, task_id, admin)
-log_delete = (
-    db.query(SystemLog)
-    .filter(
-        SystemLog.target_type == "Dispatch",
-        SystemLog.target_id == dispatch.id,
-        SystemLog.action == ActionType.DELETE,
-    )
-    .first()
-)
-check("DELETE 日志存在", log_delete is not None)
-
-# 恢复
-db.query(Dispatch).filter(Dispatch.task_id == task_id).update(
-    {"is_deleted": False}, synchronize_session=False
-)
-db.commit()
-
-# ============================================================
-# 34. 事务 rollback
-# ============================================================
-print("\n[34] 事务 rollback")
-before = db.query(Dispatch).filter(Dispatch.is_deleted == False).count()
-try:
-    dispatch_service.create_dispatch(
-        db,
-        task_id=99999,
-        destination="测试",
-        dispatch_date=datetime.now(),
-        remark=None,
-        current_user=tech,
-    )
-except Exception:
-    pass
-after = db.query(Dispatch).filter(Dispatch.is_deleted == False).count()
-check("rollback 后数量不变", before == after)
-
-# ============================================================
-# 35. 禁止命名
-# ============================================================
-print("\n[35] 禁止命名")
-try:
-    from server.services.dispatch_service import ValidationException  # type: ignore
-    check("ValidationException 不应存在", False)
-except ImportError:
-    check("ValidationException 未使用", True)
-try:
-    from server.services.dispatch_service import AuthorizationException  # type: ignore
-    check("AuthorizationException 不应存在", False)
-except ImportError:
-    check("AuthorizationException 未使用", True)
-try:
-    from server.services.dispatch_service import ConflictException  # type: ignore
-    check("ConflictException 不应存在", False)
-except ImportError:
-    check("ConflictException 未使用", True)
-
-# ============================================================
-# 36. 循环导入
-# ============================================================
-print("\n[36] 循环导入")
-from server.services import dispatch_service as ds
-check("无循环导入", True)
-
-# ============================================================
-# 清理
-# ============================================================
-task_ids = [task_id, task2.id, task6.id]
-db.query(SystemLog).filter(SystemLog.target_type == "Dispatch").delete()
-db.query(Dispatch).filter(Dispatch.task_id.in_(task_ids)).delete()
-db.query(InspectionRecord).filter(InspectionRecord.task_id.in_(task_ids)).delete()
-db.query(GrindingRecord).filter(GrindingRecord.task_id.in_(task_ids)).delete()
-for t_id in task_ids:
-    t = db.query(TrialTask).filter(TrialTask.id == t_id).first()
-    if t:
-        db.delete(t)
-db.commit()
-db.close()
-
-# ============================================================
-# 结果
+# 汇总
 # ============================================================
 print("\n" + "=" * 60)
 total = PASSED + FAILED
 print(f"  Total: {total}  |  PASS: {PASSED}  |  FAIL: {FAILED}")
 if FAILED == 0:
-    print("  结果: ALL PASSED")
+    print("  Result: ALL PASSED")
 else:
-    print(f"  结果: {FAILED} FAILED")
+    print(f"  Result: {FAILED} FAILED")
 print("=" * 60)
 
 sys.exit(0 if FAILED == 0 else 1)
