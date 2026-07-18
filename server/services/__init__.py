@@ -19,6 +19,7 @@ from server.services.dispatch_service import DispatchService
 from server.services.auth_service import AuthService
 from server.services.user_service import UserService
 from server.services.query_service import QueryService
+from server.services.log_service import LogService
 
 __all__ = [
     "TaskService",
@@ -29,4 +30,5 @@ __all__ = [
     "AuthService",
     "UserService",
     "QueryService",
+    "LogService",
 ]

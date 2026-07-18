@@ -31,6 +31,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from server.schemas.log_schema import LogBase
+from server.services.log_service import LogService
 from server.core.exceptions import (
     BusinessLogicException,
     NotFoundException,
@@ -44,7 +46,6 @@ from server.enums import (
 from server.models import (
     Dispatch,
     InspectionRecord,
-    SystemLog,
     TrialTask,
 )
 from server.schemas.dispatch_schema import (
@@ -63,6 +64,7 @@ logger = logging.getLogger("gtms.server")
 
 
 class DispatchService:
+
     """工件派发业务服务。
 
     所有数据库操作均通过 SQLAlchemy Session 进行。
@@ -70,6 +72,8 @@ class DispatchService:
     权限检查由 Router 层负责，本层不处理权限。
     状态流转由本层统一负责，外部不得绕过。
     """
+
+    _log_service = LogService()
 
     # ============================================================
     # 公开 API：列表查询
@@ -524,7 +528,7 @@ class DispatchService:
         target_id: int,
         changes: Optional[dict] = None,
     ) -> None:
-        """写入系统操作日志。
+        """写入系统操作日志（委托 LogService）。
 
         Args:
             db: 数据库会话。
@@ -534,15 +538,19 @@ class DispatchService:
             target_id: 操作对象 ID。
             changes: 变更内容（可选）。
         """
-        log_entry = SystemLog(
-            user_id=operator_id,
-            action=action,
+        import json
+        log_base = LogBase(
+            operator_id=operator_id,
+            operation=action,
+            module=target_type,
             target_type=target_type,
             target_id=target_id,
-            changes=changes,
+            description=(
+                json.dumps(changes, ensure_ascii=False, default=str)
+                if changes else None
+            ),
         )
-        db.add(log_entry)
-        db.commit()
+        self._log_service.create_log(db, log_base)
 
 
 __all__ = [

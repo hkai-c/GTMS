@@ -1,7 +1,7 @@
 """
 server.schemas 包
 
-Sprint 3 — Task 3.1 / Sprint 4 — Task 4.1 / Sprint 5 — Task 5.1 / Sprint 6 — Task 6.1 / Sprint 7 — Task 7.1 / Sprint 8 — Task 8.1 / Sprint 9 — Task 9.1 / Sprint 10 — Task 10.1
+Sprint 3 — Task 3.1 / Sprint 4 — Task 4.1 / Sprint 5 — Task 5.1 / Sprint 6 — Task 6.1 / Sprint 7 — Task 7.1 / Sprint 8 — Task 8.1 / Sprint 9 — Task 9.1 / Sprint 10 — Task 10.1 / Sprint 11 — Task 11.1
 GTMS Pydantic Schema 层，用于 API 请求/响应序列化。
 
 包含:
@@ -14,6 +14,7 @@ GTMS Pydantic Schema 层，用于 API 请求/响应序列化。
     - inspection_schema:     检测记录相关 Schema（InspectionCreate, InspectionResponse 等）
     - dispatch_schema:       工件派发相关 Schema（DispatchCreate, DispatchResponse 等）
     - query_schema:          查询统计相关 Schema（QueryFilter, StatisticsResponse 等）
+    - log_schema:            操作日志相关 Schema（LogBase, LogResponse 等）
 """
 
 from server.schemas.user_schema import (
@@ -78,6 +79,12 @@ from server.schemas.query_schema import (
     ExportRequest,
     QueryResponse,
 )
+from server.schemas.log_schema import (
+    LogBase,
+    LogResponse,
+    LogListResponse,
+    LogQuery,
+)
 
 __all__ = [
     # User
@@ -134,4 +141,9 @@ __all__ = [
     "StatisticsResponse",
     "ExportRequest",
     "QueryResponse",
+    # Log
+    "LogBase",
+    "LogResponse",
+    "LogListResponse",
+    "LogQuery",
 ]

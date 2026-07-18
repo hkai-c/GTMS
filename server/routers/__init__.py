@@ -20,6 +20,7 @@ from server.routers.grinding_router import router as grinding_router
 from server.routers.inspection_router import router as inspection_router
 from server.routers.dispatch_router import router as dispatch_router
 from server.routers.query_router import router as query_router
+from server.routers.log_router import router as log_router
 from server.routers.role_router import router as role_router
 from server.routers.trial_task_router import router as trial_task_router
 from server.routers.upload_router import router as upload_router
@@ -33,6 +34,7 @@ __all__ = [
     "inspection_router",
     "dispatch_router",
     "query_router",
+    "log_router",
     "role_router",
     "trial_task_router",
     "upload_router",
