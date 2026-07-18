@@ -12,6 +12,7 @@ Sprint 3 — Task 3.7, 3.8, 3.12 / Sprint 4 — Task 4.4 / Sprint 5 — Task 5.4
     - grinding_service:     桌面端试磨记录管理服务
     - inspection_service:   桌面端检测记录管理服务
     - dispatch_service:   桌面端工件派发管理服务
+    - query_service:     桌面端查询统计管理服务
 """
 
 from client.services.api_client import ApiClient
@@ -21,6 +22,7 @@ from client.services.receipt_service import ReceiptService
 from client.services.grinding_service import GrindingService
 from client.services.inspection_service import InspectionService
 from client.services.dispatch_service import DispatchService
+from client.services.query_service import QueryService
 from client.services.task_service import TaskService
 from client.services.user_service import UserService
 
@@ -32,6 +34,7 @@ __all__ = [
     "GrindingService",
     "InspectionService",
     "DispatchService",
+    "QueryService",
     "TaskService",
     "UserService",
 ]

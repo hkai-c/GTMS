@@ -4622,6 +4622,754 @@ Server Service
 
 不得因新增状态而重构整体架构。
 
+### 15.13 Query Aggregation Principle
+
+本规范用于统一 GTMS 查询统计（Query & Statistics）的聚合数据来源、计算方式与输出标准，确保所有统计查询一致、可靠、可扩展、可审计。
+
+---
+
+#### 15.13.1 设计目标（Design Goals）
+
+所有查询统计应遵循：
+
+- 数据来源一致
+- 统计口径统一
+- 数据库优先
+- 只读安全
+- 可扩展
+- 可审计
+- UI 无聚合逻辑
+
+保证未来新增 Dashboard、BI、Report 等模块无需重新设计统计架构。
+
+---
+
+#### 15.13.2 适用范围（Scope）
+
+本规范适用于：
+
+- QueryService
+- Statistics
+- Dashboard
+- BI
+- Report
+- Export
+- Future Aggregation Modules
+
+以及未来所有涉及数据查询、统计、聚合、导出的模块。
+
+---
+
+#### 15.13.3 唯一聚合入口（Single Aggregation Entry）
+
+所有统计聚合必须由 **QueryService** 统一提供。
+
+禁止：
+
+- 其他 Service 实现统计聚合
+- Router 直接查询聚合
+- View 实现统计算法
+- Desktop Service 实现数据统计
+- Widget 计算统计指标
+
+保证：
+
+所有统计查询结果一致，无重复实现，无口径差异。
+
+---
+
+#### 15.13.4 数据来源统一（Unified Data Source）
+
+所有统计必须基于 **TrialTask** 关联查询。
+
+关联链路：
+
+```
+TrialTask
+  ├── Customer       (customer_id)
+  ├── User           (sales_id)
+  ├── GrindingRecord (task_id)
+  ├── InspectionRecord (task_id)
+  ├── Dispatch       (task_id)
+  └── Receipt        (task_id)
+```
+
+禁止：
+
+- 跨 Service 直接读取其他表
+- 绕过 TrialTask 查询关联数据
+- 使用非 ORM 方式查询数据库
+- 直接拼接 SQL
+
+所有关联查询必须通过 SQLAlchemy ORM JOIN 完成。
+
+---
+
+#### 15.13.5 数据库优先原则（Database-First Principle）
+
+所有统计必须优先使用数据库聚合函数。
+
+允许：
+
+- `func.count()` — 计数
+- `func.sum()` — 求和
+- `func.avg()` — 平均值
+- `GROUP BY` — 分组聚合
+- `ORDER BY` — 排序
+- `.filter()` — 条件过滤
+
+禁止：
+
+- Python `len()` 替代 `COUNT`
+- Python `sum()` 替代 `SUM`
+- Python `for` 循环聚合
+- 查询全表后在 Python 内存中统计
+- 在循环内逐条查询数据库
+
+所有聚合计算必须在数据库层完成，结果直接返回。
+
+---
+
+#### 15.13.6 过滤与分页（Filtering & Pagination）
+
+所有查询必须使用数据库层过滤与分页。
+
+允许：
+
+- `.filter()` 构建 WHERE 子句
+- `.offset()` + `.limit()` 实现分页
+- `.order_by()` 实现排序
+- `.count()` 获取总数
+
+禁止：
+
+- 查询全表后在 Python 内存中过滤
+- `SELECT *` 无限制查询
+- Python 列表切片替代分页
+- Python `sorted()` 替代数据库排序
+
+所有过滤条件必须转化为 ORM 表达式，确保数据库执行计划最优。
+
+---
+
+#### 15.13.7 导出数据规范（Export Data Standard）
+
+`export_excel()` 仅负责准备导出数据，不生成文件。
+
+允许：
+
+- 返回 `list[dict]` 二维数据
+- 复用 `_apply_filters()` 筛选条件
+- 复用 `_apply_sorting()` 排序逻辑
+- 复用 `_task_to_dict()` 数据转换
+
+禁止：
+
+- 生成 Excel 文件
+- 依赖 `openpyxl`
+- 文件写入
+- 返回文件路径
+- 返回二进制流
+
+导出文件生成由调用方（Router / View）负责，QueryService 仅提供数据。
+
+---
+
+#### 15.13.8 只读约束（Read-Only Constraint）
+
+QueryService 全部接口为只读查询。
+
+禁止：
+
+- `db.commit()`
+- `db.rollback()`
+- `db.flush()`
+- `db.add()`
+- `db.delete()`
+- ORM `update()`
+- ORM `insert()`
+- ORM `delete()`
+- 修改 `process_status`
+- 修改 `result_status`
+- 修改任何数据库记录
+
+QueryService 不含任何写操作，确保统计查询安全。
+
+---
+
+#### 15.13.9 统计指标定义（Statistics Metrics Definition）
+
+所有统计指标必须统一口径。
+
+通过数量：
+
+```
+result_status == TrialTaskResultStatus.PASSED
+```
+
+失败数量：
+
+```
+result_status == TrialTaskResultStatus.FAILED
+```
+
+成功率：
+
+```
+passed_count / (passed_count + failed_count) × 100
+```
+
+零除保护：
+
+```
+total_evaluated > 0 时计算，否则 success_rate = 0.0
+```
+
+本月任务数：
+
+```
+created_at >= month_start（当月 1 日 00:00:00）
+```
+
+年度任务数：
+
+```
+created_at >= year_start（当年 1 月 1 日 00:00:00）
+```
+
+禁止：
+
+- 各模块自行定义统计口径
+- 对同一指标使用不同计算方式
+- 硬编码统计日期范围
+
+---
+
+#### 15.13.10 排行统计规范（Ranking Statistics Standard）
+
+排行统计统一使用 `GROUP BY` + `COUNT` + `ORDER BY DESC` + `LIMIT`。
+
+客户排行：
+
+```
+GROUP BY customer.id, customer.company_name
+ORDER BY COUNT DESC
+LIMIT 10
+```
+
+机型排行：
+
+```
+JOIN grinding_records
+GROUP BY grinding_records.machine_type
+ORDER BY COUNT DESC
+LIMIT 10
+```
+
+禁止：
+
+- Python 内存分组
+- Python `collections.Counter()` 替代 GROUP BY
+- 不限量排行
+
+Top N 排行统一使用 `LIMIT` 控制，默认取 Top 10。
+
+---
+
+#### 15.13.11 日志规范（Logging Standard）
+
+QueryService 应记录：
+
+- 查询条件（page, page_size, 筛选参数）
+- 统计请求（month, year, passed, failed, rate）
+- 导出请求（total, file_name）
+- 排行结果（returned 条数）
+
+日志统一使用：
+
+```
+logging.getLogger("gtms.server")
+```
+
+禁止：
+
+- 循环日志
+- 单条记录日志
+- `print()`
+
+---
+
+#### 15.13.12 异常处理规范（Exception Handling Standard）
+
+查询统计为只读操作，空结果不抛异常。
+
+允许：
+
+- 空结果返回空列表 `[]`
+- 空结果返回 `total = 0`
+- 无排行数据返回空列表 `[]`
+
+禁止：
+
+- 空结果抛出 `NotFoundException`
+- 空结果抛出任何异常
+- `raise` 任何异常
+
+参数校验由 Schema 层负责，Service 层不重复校验。
+
+---
+
+#### 15.13.13 可扩展性（Extensibility）
+
+QueryService 应支持：
+
+- 新增筛选条件
+- 新增排序字段
+- 新增统计指标
+- 新增排行维度
+- 新增导出格式
+- Dashboard 集成
+- BI 系统集成
+- Report 模块集成
+
+不得因新增统计需求而重构整体架构。
+
+---
+
+#### 15.13.14 测试要求（Testing Requirement）
+
+QueryService 必须覆盖：
+
+- list_tasks（组合查询、分页、排序）
+- get_statistics（本月/年度/通过/失败/成功率）
+- get_customer_ranking（客户排行 Top 10）
+- get_machine_ranking（机型排行 Top 10）
+- export_excel（数据导出准备）
+- 空结果
+- 日期范围
+- 零除保护
+- 只读约束
+- 性能标准
+
+所有测试必须 100% PASS。
+
+---
+
+#### 15.13.15 Public API Freeze
+
+QueryService 公开 API 冻结后：
+
+禁止修改：
+
+- 方法名
+- 参数签名
+- 返回值类型
+- 统计口径
+
+允许：
+
+- 新增统计方法
+- 新增筛选条件
+- 新增排行维度
+- 内部实现优化
+
+---
+
+#### 15.13.16 Mini Freeze
+
+QueryService 完成后必须执行：
+
+**Query Service Mini Freeze Review**。
+
+Review 内容包括：
+
+- Architecture
+- Single Aggregation Entry
+- Unified Data Source
+- Database-First Principle
+- Read-Only Constraint
+- Export Data Standard
+- Statistics Metrics
+- Ranking Standard
+- Logging
+- Exception
+- Performance
+- Testing
+- Frozen API
+
+---
+
+#### 15.13.17 Baseline Freeze
+
+Query & Statistics 模块全部完成后必须执行：
+
+**Query & Statistics Baseline Freeze Review**。
+
+Review 内容包括：
+
+- QueryService
+- QueryRouter
+- Desktop QueryService
+- QueryView
+- Statistics Metrics
+- Ranking Logic
+- Export Logic
+- Dashboard Integration
+- Testing
+- Frozen API
+
+Review 通过后：
+
+Query & Statistics 模块正式冻结。
+
+---
+
+#### 15.13.18 适用范围汇总（Scope Summary）
+
+本规范适用于：
+
+- QueryService
+- QueryRouter
+- Desktop QueryService
+- QueryView
+- Dashboard
+- BI
+- Report
+- Future Aggregation Modules
+
+以及未来所有涉及数据查询、统计、聚合、导出的模块。
+
+==================================================
+§15.14 Analysis View Principle
+==================================================
+
+15.14.1 Design Goal
+--------------------------------------------------
+
+Analysis View
+
+用于：
+
+查询
+
+统计展示
+
+排行榜
+
+Dashboard
+
+报表展示。
+
+Analysis View
+
+属于：
+
+Pure View。
+
+==================================================
+15.14.2 Scope
+==================================================
+
+适用于：
+
+QueryView
+
+Dashboard
+
+Statistics View
+
+Report View
+
+以及：
+
+所有分析展示页面。
+
+==================================================
+15.14.3 Zero Business Logic
+==================================================
+
+Analysis View
+
+不得：
+
+计算统计数据。
+
+不得：
+
+计算成功率。
+
+不得：
+
+计算排行榜。
+
+不得：
+
+计算汇总。
+
+所有数据：
+
+必须来自：
+
+Desktop Service。
+
+==================================================
+15.14.4 Zero Aggregation
+==================================================
+
+Analysis View
+
+不得：
+
+count()
+
+sum()
+
+avg()
+
+group by
+
+排序统计。
+
+所有聚合：
+
+必须：
+
+Server QueryService
+
+完成。
+
+==================================================
+15.14.5 Zero Export Logic
+==================================================
+
+Analysis View
+
+不得：
+
+生成 Excel。
+
+不得：
+
+生成 PDF。
+
+不得：
+
+写入文件。
+
+仅允许：
+
+调用：
+
+Desktop QueryService.export_excel()。
+
+==================================================
+15.14.6 Widget Responsibility
+==================================================
+
+View
+
+仅负责：
+
+数据显示。
+
+图表刷新。
+
+分页。
+
+搜索。
+
+按钮事件。
+
+不得：
+
+处理业务逻辑。
+
+==================================================
+15.14.7 Refresh Flow
+==================================================
+
+refresh()
+
+必须作为：
+
+唯一刷新入口。
+
+统一流程：
+
+Desktop Service
+
+↓
+
+Table
+
+↓
+
+Statistics
+
+↓
+
+Ranking
+
+↓
+
+Pagination
+
+↓
+
+StatusBar
+
+==================================================
+15.14.8 Dependency
+==================================================
+
+Analysis View
+
+仅允许依赖：
+
+Desktop Service。
+
+禁止：
+
+ApiClient。
+
+禁止：
+
+Router。
+
+禁止：
+
+ORM。
+
+禁止：
+
+Database。
+
+==================================================
+15.14.9 Workflow
+==================================================
+
+Zero Workflow。
+
+不得：
+
+process_status
+
+判断。
+
+==================================================
+15.14.10 Status Machine
+==================================================
+
+Zero Status Machine。
+
+不得：
+
+result_status
+
+流转。
+
+==================================================
+15.14.11 Public API Freeze
+==================================================
+
+Public API
+
+冻结后：
+
+不得修改函数签名。
+
+仅允许：
+
+新增调用。
+
+==================================================
+15.14.12 Testing
+==================================================
+
+必须覆盖：
+
+查询。
+
+刷新。
+
+分页。
+
+统计展示。
+
+排行榜展示。
+
+导出按钮。
+
+Layout。
+
+ObjectName。
+
+Signal。
+
+全部 PASS。
+
+==================================================
+15.14.13 Mini Freeze
+==================================================
+
+Analysis View
+
+完成后：
+
+必须进行：
+
+Mini Freeze Review。
+
+==================================================
+15.14.14 Baseline Freeze
+==================================================
+
+Sprint 完成后：
+
+Analysis View
+
+进入：
+
+View Baseline Freeze。
+
+==================================================
+15.14.15 Summary
+==================================================
+
+Analysis View
+
+定位：
+
+Pure Presentation。
+
+所有：
+
+查询。
+
+统计。
+
+排行。
+
+导出。
+
+全部委托：
+
+Desktop QueryService
+
+↓
+
+Server QueryService。
+
+Analysis View
+
+永远不承担：
+
+统计计算。
+
+业务逻辑。
+
+状态流转。
+
 ---
 
 ## 16. V1.0 开发计划
@@ -4681,7 +5429,7 @@ Server Service
 ---
 
 > **文档维护者：** GTMS 开发团队  
-> **最后更新：** 2026-07-08  
+> **最后更新：** 2026-07-16  
 > **对应版本：** V1.0
 
 ---

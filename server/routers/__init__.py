@@ -10,6 +10,7 @@ GTMS API 路由层，包含：
     - grinding_router: 试磨记录管理接口
     - inspection_router: 检测记录管理接口
     - dispatch_router: 工件派发管理接口
+    - query_router: 查询统计管理接口
 """
 
 from server.routers.auth_router import router as auth_router
@@ -18,6 +19,7 @@ from server.routers.receipt_router import router as receipt_router
 from server.routers.grinding_router import router as grinding_router
 from server.routers.inspection_router import router as inspection_router
 from server.routers.dispatch_router import router as dispatch_router
+from server.routers.query_router import router as query_router
 from server.routers.role_router import router as role_router
 from server.routers.trial_task_router import router as trial_task_router
 from server.routers.upload_router import router as upload_router
@@ -30,6 +32,7 @@ __all__ = [
     "grinding_router",
     "inspection_router",
     "dispatch_router",
+    "query_router",
     "role_router",
     "trial_task_router",
     "upload_router",

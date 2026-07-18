@@ -29,6 +29,7 @@ from server.middleware.log_middleware import setup_request_logging
 from server.routers.auth_router import router as auth_router
 from server.routers.customer_router import router as customer_router
 from server.routers.dispatch_router import router as dispatch_router
+from server.routers.query_router import router as query_router
 from server.routers.receipt_router import router as receipt_router
 from server.routers.role_router import router as role_router
 from server.routers.trial_task_router import router as trial_task_router
@@ -73,6 +74,7 @@ register_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(customer_router)
 app.include_router(dispatch_router)
+app.include_router(query_router)
 app.include_router(receipt_router)
 app.include_router(role_router)
 app.include_router(trial_task_router)
