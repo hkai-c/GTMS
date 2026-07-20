@@ -6138,6 +6138,1688 @@ Mini Freeze Review。
 
 所有新建只读页面默认遵循本规范。
 
+### §15.17 Notification Principle
+
+#### §15.17.1 设计目标
+
+Notification Module 用于统一管理系统消息提醒。
+
+其职责包括：
+
+- 自动生成提醒
+- 消息查询
+- 消息已读
+- 消息跳转
+- 用户消息隔离
+
+Notification 不负责：
+
+- 邮件发送
+- 短信发送
+- 微信推送
+- 企业 IM 推送
+
+所有消息均为系统内部通知。
+
+---
+
+#### §15.17.2 适用范围
+
+本规范适用于：
+
+- Notification Schema
+- Notification Service
+- Notification Router
+- APScheduler
+- Desktop NotificationService
+- Dashboard Notification Panel
+
+所有消息功能必须遵循本规范。
+
+---
+
+#### §15.17.3 唯一消息生成入口
+
+所有消息必须统一由：
+
+NotificationService
+
+生成。
+
+禁止：
+
+Router
+
+View
+
+Scheduler
+
+直接创建 NotificationRecord。
+
+---
+
+#### §15.17.4 Scheduler Principle
+
+APScheduler
+
+仅负责：
+
+Trigger。
+
+允许：
+
+定时调用：
+
+NotificationService。
+
+禁止：
+
+业务判断。
+
+ORM 操作。
+
+Workflow。
+
+Status Machine。
+
+所有业务逻辑必须位于：
+
+NotificationService。
+
+---
+
+#### §15.17.5 消息生成规则
+
+NotificationService
+
+负责：
+
+判断是否需要生成提醒。
+
+生成消息。
+
+去重检查。
+
+写入数据库。
+
+不得由其它模块生成消息。
+
+---
+
+#### §15.17.6 去重原则
+
+相同：
+
+- user_id
+- notification_type
+- target_type
+- target_id
+
+未读状态下：
+
+最多存在一条消息。
+
+禁止重复生成。
+
+---
+
+#### §15.17.7 消息读取原则
+
+读取消息：
+
+不得修改业务数据。
+
+允许：
+
+mark_as_read()
+
+仅修改：
+
+is_read
+
+read_time
+
+不得影响：
+
+Workflow。
+
+Status Machine。
+
+---
+
+#### §15.17.8 用户隔离原则
+
+用户仅允许查看：
+
+属于自己的消息。
+
+禁止：
+
+跨用户。
+
+跨角色。
+
+跨部门。
+
+访问消息。
+
+---
+
+#### §15.17.9 Dashboard Principle
+
+Dashboard
+
+仅负责：
+
+展示消息。
+
+未读数量。
+
+角标。
+
+点击跳转。
+
+禁止：
+
+生成消息。
+
+修改业务状态。
+
+业务判断。
+
+---
+
+#### §15.17.10 Desktop NotificationService
+
+Desktop Service
+
+职责仅包括：
+
+HTTP Mapping。
+
+禁止：
+
+Business Logic。
+
+Workflow。
+
+Status Machine。
+
+Aggregation。
+
+所有方法统一返回：
+
+resp.json()。
+
+---
+
+#### §15.17.11 Router Principle
+
+Notification Router
+
+仅负责：
+
+HTTP。
+
+Permission。
+
+Dependency Injection。
+
+调用：
+
+NotificationService。
+
+禁止：
+
+Business Logic。
+
+ORM。
+
+Workflow。
+
+Status Machine。
+
+---
+
+#### §15.17.12 Logging
+
+Notification
+
+所有新增。
+
+已读。
+
+自动生成。
+
+必须统一记录：
+
+Audit Log。
+
+统一调用：
+
+LogService.create_log()。
+
+禁止直接写：
+
+SystemLog。
+
+---
+
+#### §15.17.13 Exception
+
+NotificationService
+
+统一抛出：
+
+BusinessLogicException。
+
+NotFoundException。
+
+ValidationException。
+
+Desktop
+
+不捕获异常。
+
+Router
+
+不处理异常。
+
+统一交由：
+
+Global Exception Handler。
+
+---
+
+#### §15.17.14 测试要求
+
+必须覆盖：
+
+- 自动生成
+- 去重
+- 已读
+- 查询
+- 用户隔离
+- Scheduler
+- Dashboard
+- Desktop Service
+- Router
+
+以及全部历史回归测试。
+
+---
+
+#### §15.17.15 Public API Freeze
+
+Notification
+
+Mini Freeze
+
+结束后：
+
+Public API
+
+正式冻结。
+
+不得新增：
+
+Public Method。
+
+不得修改：
+
+函数签名。
+
+---
+
+#### §15.17.16 Mini Freeze
+
+Notification
+
+每个 Layer
+
+完成开发后：
+
+必须执行：
+
+Mini Freeze Review。
+
+确认：
+
+- Zero Workflow
+- Zero Status Machine
+- Zero Business Logic（Router/Desktop）
+- Zero ORM（Router/View）
+- Zero HTTP（View）
+
+全部符合后方可冻结。
+
+---
+
+#### §15.17.17 Baseline Freeze
+
+Sprint 12
+
+完成后：
+
+执行：
+
+Baseline Freeze。
+
+确认：
+
+Server。
+
+Desktop。
+
+Scheduler。
+
+Dashboard。
+
+Notification。
+
+全部冻结。
+
+---
+
+#### §15.17.18 Future Extension
+
+未来允许扩展：
+
+- Email Notification
+- SMS Notification
+- WebSocket Push
+- MQTT Push
+- 企业微信
+- 钉钉
+- Slack
+- Microsoft Teams
+
+扩展不得修改：
+
+Notification Public API。
+
+---
+
+#### §15.17.19 适用范围汇总
+
+本规范统一适用于：
+
+- Notification Schema
+- Notification Service
+- Notification Router
+- APScheduler
+- Desktop NotificationService
+- Dashboard Notification Panel
+
+以及未来所有系统消息模块。
+
+所有新建消息功能默认遵循本规范。
+
+### 15.18 Notification Generation Principle（消息生成原则）
+
+#### 15.18.1 设计目标
+
+Notification Generation Principle 用于统一 GTMS 消息提醒生成机制。
+
+所有 Notification 必须遵循：
+
+- 唯一生成入口（Single Entry）
+- 幂等（Idempotent）
+- 去重（Deduplication）
+- 单一职责（Single Responsibility）
+- 可扩展（Extensible）
+
+任何模块不得绕过本规范直接生成 Notification。
+
+---
+
+#### 15.18.2 适用范围
+
+本原则适用于：
+
+- NotificationService
+- APScheduler
+- Notification Router
+- Desktop Notification Service
+- Dashboard
+- Message Panel
+- Future Email / SMS / Webhook / Push
+
+---
+
+#### 15.18.3 唯一生成入口（Single Entry）
+
+所有 Notification 必须统一由：
+
+NotificationService.generate_notifications()
+
+负责生成。
+
+禁止：
+
+- Router 生成 Notification
+- Scheduler 生成 Notification
+- View 生成 Notification
+- Desktop Service 生成 Notification
+- ORM 直接创建 Notification
+
+---
+
+#### 15.18.4 唯一创建入口
+
+所有 Notification 创建必须统一调用：
+
+NotificationService.create_notification()
+
+禁止：
+
+Session.add(Notification)
+
+db.add(Notification)
+
+任何模块直接创建 Notification。
+
+---
+
+#### 15.18.5 Scheduler 解耦原则
+
+APScheduler 仅负责：
+
+定时调用：
+
+NotificationService.generate_notifications(db)
+
+Scheduler：
+
+不得包含任何业务逻辑。
+
+不得判断消息规则。
+
+不得访问业务 ORM。
+
+不得创建 Notification。
+
+---
+
+#### 15.18.6 幂等原则（Idempotent）
+
+NotificationService.generate_notifications()
+
+必须满足幂等。
+
+连续执行任意次数：
+
+不得产生重复 Notification。
+
+重复执行：
+
+系统状态必须保持一致。
+
+---
+
+#### 15.18.7 去重原则（Deduplication）
+
+Notification 是否重复统一由：
+
+NotificationService
+
+负责判断。
+
+建议唯一判定条件：
+
+- user_id
+- notification_type
+- target_type
+- target_id
+- is_read = False
+
+相同条件下：
+
+系统仅允许存在一条未读 Notification。
+
+---
+
+#### 15.18.8 消息规则集中管理
+
+所有提醒规则必须集中位于：
+
+NotificationService。
+
+例如：
+
+- 超时提醒
+- 待处理提醒
+- 待审核提醒
+- 即将到期提醒
+- 系统通知
+
+未来新增提醒规则：
+
+仅允许修改 NotificationService。
+
+不得修改：
+
+- Router
+- Scheduler
+- Desktop Service
+- View
+
+---
+
+#### 15.18.9 Notification Service 职责
+
+NotificationService 负责：
+
+- 消息生成
+- 消息去重
+- 消息创建
+- 已读处理
+- 批量已读
+- 自动生成
+- Audit Log
+
+不得负责：
+
+- HTTP
+- Router
+- View
+- Scheduler
+- UI
+- Push
+
+---
+
+#### 15.18.10 Router 原则
+
+Notification Router：
+
+仅负责：
+
+- 参数接收
+- Dependency Injection
+- 调用 NotificationService
+- 返回结果
+
+不得：
+
+- 生成 Notification
+- 判断提醒规则
+- 去重
+- 写日志
+
+---
+
+#### 15.18.11 Desktop Service 原则
+
+Desktop NotificationService：
+
+仅负责：
+
+HTTP Mapping。
+
+不得：
+
+- 判断提醒规则
+- 去重
+- 聚合
+- Workflow
+- Status Machine
+- Business Logic
+
+---
+
+#### 15.18.12 View 原则
+
+Notification View：
+
+仅负责：
+
+数据显示。
+
+刷新。
+
+分页。
+
+搜索。
+
+标记已读调用。
+
+不得：
+
+生成 Notification。
+
+去重。
+
+聚合。
+
+Workflow。
+
+Status Machine。
+
+---
+
+#### 15.18.13 Audit Logging
+
+Notification 创建、
+
+Notification 已读、
+
+批量已读、
+
+统一调用：
+
+LogService.create_log()
+
+禁止：
+
+Session.add(SystemLog)
+
+禁止：
+
+直接写日志。
+
+---
+
+#### 15.18.14 性能原则
+
+Notification 查询：
+
+必须使用数据库过滤。
+
+分页：
+
+OFFSET / LIMIT。
+
+禁止：
+
+Python 全表遍历。
+
+禁止：
+
+重复查询。
+
+---
+
+#### 15.18.15 测试要求
+
+Notification Service 必须覆盖：
+
+- create_notification()
+- generate_notifications()
+- mark_as_read()
+- mark_all_as_read()
+- 去重
+- 幂等
+- Rollback
+- Audit Log
+- 回归测试
+
+全部通过后方可 Freeze。
+
+---
+
+#### 15.18.16 Public API Freeze
+
+NotificationService Public API 冻结后：
+
+不得修改：
+
+- 方法名称
+- 方法签名
+- 返回类型
+
+新增功能：
+
+仅允许新增方法。
+
+不得破坏历史接口。
+
+---
+
+#### 15.18.17 Mini Freeze
+
+完成 Notification Service 后必须执行：
+
+Mini Freeze Review。
+
+确认：
+
+- Notification Principle
+- Notification Generation Principle
+- Workflow
+- Status Machine
+- Audit Logging
+
+全部 PASS。
+
+---
+
+#### 15.18.18 Baseline Freeze
+
+Sprint Notification Baseline Freeze 必须确认：
+
+Notification 全链路：
+
+Schema
+
+↓
+
+Service
+
+↓
+
+Router
+
+↓
+
+Scheduler
+
+↓
+
+Desktop Service
+
+↓
+
+View
+
+全部符合规范。
+
+---
+
+#### 15.18.19 可扩展性（Future Extension）
+
+未来支持：
+
+- Message Priority
+- Message Category
+- Email Notification
+- SMS Notification
+- Enterprise WeChat
+- DingTalk
+- Push Notification
+- Webhook
+- Dashboard Badge
+- Real-time Notification
+
+应仅扩展：
+
+NotificationService。
+
+不得修改：
+
+- Router
+- Scheduler
+- Desktop Service
+- View
+
+---
+
+#### 15.18.20 总结
+
+Notification Generation Principle 是 GTMS Notification 模块唯一生成规范。
+
+所有 Notification 必须满足：
+
+- Single Entry
+- Idempotent
+- Deduplication
+- Separation of Concerns
+- Extensible
+- Audit Logging
+- Frozen API
+
+任何违反本原则的实现均不得通过 Mini Freeze Review。
+
+### 15.19 Scheduler Principle（调度器原则）
+
+#### 15.19.1 设计目标
+
+Scheduler Principle 用于统一 GTMS 后台定时任务架构。
+
+所有 Scheduler 必须遵循：
+
+- 调度与业务解耦（Decoupling）
+- Service 唯一业务入口（Single Entry）
+- 幂等执行（Idempotent）
+- 可重复运行（Repeatable）
+- 可扩展（Extensible）
+
+Scheduler 不属于业务层。
+
+---
+
+#### 15.19.2 适用范围
+
+本原则适用于：
+
+- APScheduler
+- Cron Job
+- Background Task
+- Celery（未来）
+- 定时消息提醒
+- 自动维护任务
+- 自动统计任务
+- 自动清理任务
+
+---
+
+#### 15.19.3 Scheduler 唯一职责
+
+Scheduler 仅负责：
+
+- 定时触发
+- 调用 Service
+- 输出运行日志
+- 捕获调度异常
+
+不得负责：
+
+- 业务判断
+- Workflow
+- Status Machine
+- Notification 创建
+- ORM 操作
+- HTTP 请求
+
+---
+
+#### 15.19.4 Service 唯一业务入口（Single Entry）
+
+所有 Scheduler 必须统一调用：
+
+Service。
+
+例如：
+
+NotificationService.generate_notifications()
+
+未来：
+
+StatisticsService.refresh_statistics()
+
+CleanupService.clean_history()
+
+BackupService.create_backup()
+
+Scheduler 不得直接实现业务逻辑。
+
+---
+
+#### 15.19.5 Scheduler 禁止访问业务对象
+
+Scheduler 禁止：
+
+直接操作 ORM。
+
+禁止：
+
+Session.add()
+
+Session.commit()
+
+Session.delete()
+
+禁止：
+
+直接创建：
+
+Notification
+
+TrialTask
+
+Inspection
+
+Dispatch
+
+SystemLog
+
+所有业务操作必须委托对应 Service。
+
+---
+
+#### 15.19.6 幂等原则（Idempotent）
+
+Scheduler 调用的方法必须满足：
+
+Idempotent。
+
+重复执行：
+
+不得产生重复数据。
+
+不得破坏业务状态。
+
+不得产生重复 Notification。
+
+系统状态必须保持一致。
+
+---
+
+#### 15.19.7 重复执行原则
+
+Scheduler 必须允许：
+
+重复启动。
+
+重复运行。
+
+服务重启。
+
+异常恢复。
+
+不得依赖：
+
+单次执行成功。
+
+必须保证：
+
+任意次数运行均安全。
+
+---
+
+#### 15.19.8 Transaction 原则
+
+所有数据库事务：
+
+统一由：
+
+Service
+
+负责。
+
+Scheduler：
+
+不得：
+
+commit()
+
+rollback()
+
+不得控制事务。
+
+---
+
+#### 15.19.9 Audit Logging
+
+Scheduler 本身：
+
+不得写业务日志。
+
+业务日志：
+
+统一由：
+
+LogService.create_log()
+
+负责。
+
+Scheduler 可记录：
+
+启动。
+
+结束。
+
+运行耗时。
+
+异常。
+
+不得记录业务行为。
+
+---
+
+#### 15.19.10 Exception 原则
+
+Scheduler：
+
+统一捕获调度异常。
+
+记录运行日志。
+
+不得影响下一次调度。
+
+业务异常：
+
+由对应 Service 抛出。
+
+不得隐藏异常。
+
+---
+
+#### 15.19.11 Performance Principle
+
+Scheduler：
+
+不得进行：
+
+Python 全表扫描。
+
+不得重复查询。
+
+所有数据过滤：
+
+必须交由数据库完成。
+
+Service：
+
+负责：
+
+分页。
+
+过滤。
+
+聚合。
+
+---
+
+#### 15.19.12 Scheduler Independence
+
+Scheduler：
+
+不得依赖：
+
+Router。
+
+View。
+
+Desktop Service。
+
+ApiClient。
+
+HTTP。
+
+WebSocket。
+
+Scheduler 应可独立运行。
+
+---
+
+#### 15.19.13 Future Extension
+
+未来支持：
+
+- 多 Scheduler
+- 多线程
+- 多进程
+- Celery
+- RabbitMQ
+- Redis Queue
+- Kubernetes CronJob
+
+不得修改：
+
+业务 Service。
+
+仅允许替换 Scheduler 实现。
+
+---
+
+#### 15.19.14 Testing
+
+Scheduler 必须覆盖：
+
+- 正常执行
+- 重复执行
+- 幂等验证
+- 异常恢复
+- 调度成功
+- 调度失败
+- Service 调用
+- 回归测试
+
+全部通过后方可 Freeze。
+
+---
+
+#### 15.19.15 Public API Freeze
+
+Scheduler Public API 冻结后：
+
+不得修改：
+
+- 方法名称
+- 方法签名
+- 调度入口
+
+新增能力：
+
+仅允许新增调度任务。
+
+不得破坏历史接口。
+
+---
+
+#### 15.19.16 Mini Freeze
+
+完成 Scheduler 后必须执行：
+
+Mini Freeze Review。
+
+确认：
+
+- Scheduler Principle
+- Notification Principle
+- Notification Generation Principle
+- Workflow
+- Status Machine
+
+全部 PASS。
+
+---
+
+#### 15.19.17 Baseline Freeze
+
+Sprint Scheduler Baseline Freeze 必须确认：
+
+Scheduler
+
+↓
+
+Service
+
+↓
+
+ORM
+
+↓
+
+Database
+
+调用链完整。
+
+业务职责清晰。
+
+全部符合规范。
+
+---
+
+#### 15.19.18 推荐架构（Recommended Design）
+
+推荐调用关系：
+
+Scheduler
+
+↓
+
+NotificationService.generate_notifications()
+
+↓
+
+create_notification()
+
+↓
+
+LogService.create_log()
+
+↓
+
+Database Commit
+
+Scheduler 不直接访问数据库。
+
+---
+
+#### 15.19.19 禁止事项
+
+Scheduler 禁止：
+
+- 写业务逻辑
+- 修改 Workflow
+- 修改 Status Machine
+- ORM CRUD
+- HTTP 调用
+- Router 调用
+- View 调用
+- Desktop Service 调用
+- Notification 去重
+- Notification 创建
+- Business Aggregation
+
+以上均属于 Service 职责。
+
+---
+
+#### 15.19.20 总结
+
+Scheduler Principle 是 GTMS 后台调度唯一规范。
+
+所有 Scheduler 必须满足：
+
+- Single Entry
+- Decoupling
+- Idempotent
+- Repeatable
+- Transaction by Service
+- Audit Logging
+- Frozen API
+- Future Extensible
+
+任何违反本原则的实现均不得通过 Mini Freeze Review。
+
+### 15.20 Desktop HTTP Mapping Principle（桌面端 HTTP 映射原则）
+
+#### 15.20.1 设计目标
+
+Desktop HTTP Mapping Principle 用于统一 GTMS 桌面端 Service 层架构。
+
+所有 Desktop Service 必须遵循：
+
+- HTTP Mapping
+- Zero Business Logic
+- Zero Workflow
+- Zero Status Machine
+- Thin Client
+- Single Responsibility
+
+Desktop Service 属于客户端基础设施层（Infrastructure）。
+
+---
+
+#### 15.20.2 适用范围
+
+本原则适用于所有 Desktop Service，包括但不限于：
+
+- TaskService
+- CustomerService
+- ReceiptService
+- GrindingService
+- InspectionService
+- DispatchService
+- QueryService
+- LogService
+- NotificationService
+
+未来新增 Desktop Service 必须遵循本原则。
+
+---
+
+#### 15.20.3 唯一职责（Single Responsibility）
+
+Desktop Service 仅负责：
+
+- HTTP 请求
+- HTTP 参数映射
+- HTTP Body 映射
+- HTTP Response 返回
+- Logger 输出
+
+不得负责：
+
+- 业务逻辑
+- Workflow
+- Status Machine
+- Aggregation
+- Notification Generation
+- 数据计算
+- 数据统计
+- 数据转换
+
+所有业务逻辑统一由 Server Service 完成。
+
+---
+
+#### 15.20.4 HTTP Mapping
+
+Desktop Service 必须与对应 Router 保持 100% 一一对应。
+
+每一个 Public API：
+
+对应一个 HTTP Endpoint。
+
+不得：
+
+- 合并多个 Endpoint
+- 拆分一个 Endpoint
+- 修改 Endpoint
+- 修改 HTTP Method
+
+保持客户端与服务端接口一致。
+
+---
+
+#### 15.20.5 Dependency Principle
+
+Desktop Service 仅允许依赖：
+
+- ApiClient
+- Logger
+- Schema（如需要）
+
+禁止依赖：
+
+- FastAPI
+- Router
+- SQLAlchemy
+- ORM
+- Session
+- Scheduler
+- Server Service
+- View
+
+Desktop Service 不得访问数据库。
+
+---
+
+#### 15.20.6 Query Rules
+
+GET 请求：
+
+仅提交非 None 字段。
+
+不得发送：
+
+- None
+- 空字段
+- 无意义参数
+
+Query 参数应自动过滤。
+
+---
+
+#### 15.20.7 Body Rules
+
+POST、PUT、PATCH 请求：
+
+仅提交非 None 字段。
+
+Body 中不得包含：
+
+- None
+- 未修改字段
+- 无意义字段
+
+Body 自动过滤空值。
+
+---
+
+#### 15.20.8 Return Rules
+
+所有 Public API 必须统一返回：
+
+resp.json()
+
+不得：
+
+- 包装 Response
+- 转换数据结构
+- 二次解析
+- 构造 DTO
+
+保持返回数据与 Server Response 完全一致。
+
+---
+
+#### 15.20.9 Exception Principle
+
+Desktop Service：
+
+不得使用：
+
+try/except
+
+所有异常统一由：
+
+ApiClient
+
+原样抛出。
+
+异常处理属于上层（View）。
+
+---
+
+#### 15.20.10 Logging Principle
+
+统一使用：
+
+logger.debug()
+
+Logger 名称统一：
+
+gtms.client
+
+禁止：
+
+- print()
+- traceback.print_exc()
+
+仅记录：
+
+- HTTP 请求
+- HTTP 返回
+- 调试信息
+
+不得记录业务日志。
+
+---
+
+#### 15.20.11 Workflow Principle
+
+Desktop Service：
+
+不得包含：
+
+Workflow。
+
+不得引用：
+
+- TrialTaskProcessStatus
+- Workflow 判断
+- 流程控制
+
+所有 Workflow 统一由 Server Service 完成。
+
+---
+
+#### 15.20.12 Status Machine Principle
+
+Desktop Service：
+
+不得包含：
+
+Status Machine。
+
+不得修改：
+
+- process_status
+- result_status
+
+状态流转统一由 Server Service 完成。
+
+---
+
+#### 15.20.13 Business Logic Principle
+
+Desktop Service：
+
+不得实现：
+
+- CRUD 判断
+- 权限判断
+- Notification Generation
+- Aggregation
+- Validation
+- Transaction
+- Audit Logging
+
+Desktop Service 必须保持无业务逻辑。
+
+---
+
+#### 15.20.14 Aggregation Principle
+
+Desktop Service：
+
+不得进行：
+
+- sum()
+- sorted()
+- groupby()
+- Counter()
+- Top N
+- Ranking
+- Statistics
+
+所有聚合统计统一由 Server Service 完成。
+
+---
+
+#### 15.20.15 Testing
+
+Desktop Service 必须覆盖：
+
+- HTTP Mapping
+- Query Rules
+- Body Rules
+- Return Rules
+- Public API
+- Logger
+- Zero Business Logic
+- 回归测试
+
+全部测试通过后方可 Freeze。
+
+---
+
+#### 15.20.16 Public API Freeze
+
+Desktop Service Public API 冻结后：
+
+不得修改：
+
+- 方法名称
+- 方法签名
+- HTTP Mapping
+- 返回结构
+
+新增功能：
+
+仅允许新增 Public API。
+
+不得破坏历史接口。
+
+---
+
+#### 15.20.17 Mini Freeze
+
+完成 Desktop Service 后必须执行：
+
+Mini Freeze Review。
+
+确认：
+
+- HTTP Mapping
+- Workflow
+- Status Machine
+- Business Logic
+- Frozen API
+
+全部 PASS。
+
+---
+
+#### 15.20.18 Baseline Freeze
+
+Desktop Service Baseline Freeze 必须确认：
+
+Desktop Service
+
+↓
+
+ApiClient
+
+↓
+
+Router
+
+↓
+
+Server Service
+
+↓
+
+Database
+
+调用链完整。
+
+职责清晰。
+
+无重复实现。
+
+---
+
+#### 15.20.19 Recommended Design
+
+推荐架构：
+
+View
+
+↓
+
+Desktop Service
+
+↓
+
+ApiClient
+
+↓
+
+Router
+
+↓
+
+Server Service
+
+↓
+
+Database
+
+Desktop Service 不得直接访问：
+
+- Router
+- Database
+- ORM
+- Scheduler
+
+---
+
+#### 15.20.20 禁止事项
+
+Desktop Service 禁止：
+
+- Business Logic
+- Workflow
+- Status Machine
+- ORM
+- SQLAlchemy
+- Scheduler
+- Aggregation
+- Notification Generation
+- Audit Logging
+- try/except
+- print()
+
+以上均属于 Server Service 或 View 职责。
+
+---
+
+#### 15.20.21 总结
+
+Desktop HTTP Mapping Principle 是 GTMS 桌面端 Service 层唯一规范。
+
+所有 Desktop Service 必须满足：
+
+- Thin Client
+- HTTP Mapping
+- Zero Business Logic
+- Zero Workflow
+- Zero Status Machine
+- Zero Aggregation
+- Return resp.json()
+- ApiClient Only
+- Frozen API
+- Future Extensible
+
+任何违反本原则的实现均不得通过 Mini Freeze Review。
+
 ---
 
 ## 16. V1.0 开发计划

@@ -25,6 +25,7 @@ from server.routers.role_router import router as role_router
 from server.routers.trial_task_router import router as trial_task_router
 from server.routers.upload_router import router as upload_router
 from server.routers.user_router import router as user_router
+from server.routers.notification_router import router as notification_router
 
 __all__ = [
     "auth_router",
@@ -39,4 +40,5 @@ __all__ = [
     "trial_task_router",
     "upload_router",
     "user_router",
+    "notification_router",
 ]

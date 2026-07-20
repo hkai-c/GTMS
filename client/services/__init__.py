@@ -24,6 +24,7 @@ from client.services.inspection_service import InspectionService
 from client.services.dispatch_service import DispatchService
 from client.services.query_service import QueryService
 from client.services.log_service import LogService
+from client.services.notification_service import NotificationService
 from client.services.task_service import TaskService
 from client.services.user_service import UserService
 
@@ -39,4 +40,5 @@ __all__ = [
     "LogService",
     "TaskService",
     "UserService",
+    "NotificationService",
 ]

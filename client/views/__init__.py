@@ -27,6 +27,7 @@ from client.views.inspection_view import InspectionView
 from client.views.dispatch_view import DispatchView
 from client.views.query_view import QueryView
 from client.views.system_log_view import SystemLogView
+from client.views.notification_view import NotificationView
 from client.views.user_manage_view import UserManageView
 from client.views.user_edit_dialog import UserEditDialog
 from client.views.customer_view import CustomerView
@@ -51,4 +52,5 @@ __all__ = [
     "TaskDetailView",
     "QueryView",
     "SystemLogView",
+    "NotificationView",
 ]
