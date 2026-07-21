@@ -10,6 +10,7 @@ Sprint 2 — Task 2.8
     ④ 注册全局异常处理器 (Task 2.9)
     ⑤ 注册路由 (Sprint 3)
     ⑥ 注册健康检查路由
+    ⑦ 启动后台调度器 (Sprint 13 — Task 13.2)
 
 启动方式:
     uvicorn server.main:app --reload
@@ -37,6 +38,8 @@ from server.routers.trial_task_router import router as trial_task_router
 from server.routers.upload_router import router as upload_router
 from server.routers.user_router import router as user_router
 from server.routers.notification_router import router as notification_router
+from server.routers.settings_router import router as settings_router
+from server.scheduler import start_scheduler
 
 # ============================================================
 # ① 创建 FastAPI 实例
@@ -84,6 +87,7 @@ app.include_router(trial_task_router)
 app.include_router(upload_router)
 app.include_router(user_router)
 app.include_router(notification_router)
+app.include_router(settings_router)
 
 # ============================================================
 # ⑥ 健康检查路由
@@ -115,6 +119,13 @@ async def health_check() -> JSONResponse:
     return JSONResponse(
         content={"status": "ok"},
     )
+
+
+# ============================================================
+# ⑦ 启动后台调度器
+# ============================================================
+
+start_scheduler()
 
 
 # ============================================================

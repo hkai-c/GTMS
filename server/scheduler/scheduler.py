@@ -1,6 +1,6 @@
 """GTMS 调度器管理器 (Scheduler Manager)
 
-Sprint 12 — Task 12.4
+Sprint 12 — Task 12.4 / Sprint 13 — Task 13.2
 依据 §15.19 Scheduler Principle。
 
 管理 APScheduler 生命周期，提供：
@@ -16,7 +16,8 @@ import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from .jobs import generate_notifications_job
+from .constants import JobIds, SchedulerConfig
+from .jobs import generate_backup_job, generate_notifications_job
 
 logger = logging.getLogger(__name__)
 
@@ -36,22 +37,33 @@ def _create_scheduler() -> BackgroundScheduler:
         BackgroundScheduler: 已配置的调度器实例。
     """
     scheduler = BackgroundScheduler(
-        timezone="Asia/Shanghai",
+        timezone=SchedulerConfig.TIMEZONE,
     )
 
-    # 注册唯一 Job：每小时执行一次消息提醒生成
+    # 注册 Job 1：每小时执行一次消息提醒生成
     scheduler.add_job(
         generate_notifications_job,
-        trigger=CronTrigger(
-            minute=0,
-        ),
-        id="generate_notifications",
+        trigger=CronTrigger(**SchedulerConfig.NOTIFICATION_CRON),
+        id=JobIds.NOTIFICATION,
         name="消息提醒生成",
         replace_existing=True,
         max_instances=1,
     )
 
-    logger.info("调度器已创建，注册 Job: generate_notifications")
+    # 注册 Job 2：每天凌晨 2:00 执行数据库备份
+    scheduler.add_job(
+        generate_backup_job,
+        trigger=CronTrigger(**SchedulerConfig.BACKUP_CRON),
+        id=JobIds.BACKUP,
+        name="数据库备份",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    logger.info(
+        "调度器已创建，注册 Job: %s, %s",
+        JobIds.NOTIFICATION, JobIds.BACKUP,
+    )
     return scheduler
 
 

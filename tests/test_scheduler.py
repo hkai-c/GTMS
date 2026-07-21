@@ -405,8 +405,8 @@ for fp in [SCHEDULER_PY, JOBS_PY]:
 # [27] 时区配置
 # ----------------------------------------------------------
 print("\n[27] 时区配置")
-check("timezone='Asia/Shanghai'",
-      "Asia/Shanghai" in open(SCHEDULER_PY, "r", encoding="utf-8").read())
+check("使用 SchedulerConfig.TIMEZONE",
+      "SchedulerConfig.TIMEZONE" in open(SCHEDULER_PY, "r", encoding="utf-8").read())
 
 # ----------------------------------------------------------
 # [28] __all__ 导出

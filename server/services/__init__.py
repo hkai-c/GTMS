@@ -21,6 +21,7 @@ from server.services.user_service import UserService
 from server.services.query_service import QueryService
 from server.services.log_service import LogService
 from server.services.notification_service import NotificationService
+from server.services.settings_service import SettingsService
 
 __all__ = [
     "TaskService",
@@ -33,4 +34,5 @@ __all__ = [
     "QueryService",
     "LogService",
     "NotificationService",
+    "SettingsService",
 ]

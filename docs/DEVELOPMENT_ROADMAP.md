@@ -485,14 +485,38 @@
 
 | Task | 名称 | 输入 | 输出 | 依赖 |
 |:--:|------|------|------|------|
-| 13.1 | 自动备份 | CODE_WIKI §6.6.2 | `server/utils/backup.py` | Sprint 2 |
-| 13.2 | 启动备份调度 | — | 在 main.py 中启动 | Task 13.1 |
-| 13.3 | 系统设置页 | UI_PROTOTYPE §16 | `client/views/settings_view.py` | Sprint 2 |
+| 13.1 | Backup Manager | CODE_WIKI §6.6.2 | `server/utils/backup.py` | Sprint 2 |
+| 13.2 | Backup Scheduler | Task 13.1 | `server/scheduler/`、`server/main.py` | Task 13.1 |
+| 13.3 | Settings Schema | SRS | `server/schemas/settings_schema.py` | Sprint 2 |
+| 13.4 | Settings Service | Task 13.3 | `server/services/settings_service.py` | Task 13.3 |
+| 13.5 | Settings Router | Task 13.4 | `server/routers/settings_router.py` | Task 13.4 |
+| 13.6 | Desktop SettingsService | Task 13.5 | `client/services/settings_service.py` | Task 13.5 |
+| 13.7 | Settings View | Task 13.6、UI_PROTOTYPE §16 | `client/views/settings_view.py` | Task 13.6 |
+
+**Sprint 13 依赖关系：**
+
+```
+13.1 (Backup Manager)           13.3 (Settings Schema)
+     ↓                                    ↓
+13.2 (Backup Scheduler)         13.4 (Settings Service)
+                                        ↓
+                                13.5 (Settings Router)
+                                        ↓
+                                13.6 (Desktop SettingsService)
+                                        ↓
+                                13.7 (Settings View)
+```
+
+> Backup 链路与 Settings 链路完全解耦，可并行开发。
 
 **Sprint 13 完成条件：**
 
 - [ ] 每天自动备份，备份文件可恢复
-- [ ] 设置页各项配置可保存和读取
+- [ ] 自动清理历史备份文件
+- [ ] 支持数据库恢复
+- [ ] Settings API 完整（GET /api/settings、PUT /api/settings）
+- [ ] Desktop SettingsService 完整（100% HTTP Mapping）
+- [ ] 设置页各项配置可读取、编辑和保存
 - [ ] Git Tag: `v0.13.0-sprint13`
 
 ---

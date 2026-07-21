@@ -7820,6 +7820,793 @@ Desktop HTTP Mapping Principle 是 GTMS 桌面端 Service 层唯一规范。
 
 任何违反本原则的实现均不得通过 Mini Freeze Review。
 
+### 15.21 Backup Principle（备份原则）
+
+#### 15.21.1 设计目标
+
+Backup 模块负责 GTMS 数据自动备份与恢复，仅负责文件级备份，不参与任何业务流程。
+
+Backup 属于 Infrastructure Layer。
+
+---
+
+#### 15.21.2 适用范围
+
+适用于：
+
+- server/utils/backup.py
+- Backup Scheduler
+- 数据恢复工具
+- 后续云备份扩展
+
+---
+
+#### 15.21.3 唯一备份入口
+
+所有备份必须统一通过：
+
+BackupManager
+
+（或 BackupService）
+
+执行。
+
+禁止：
+
+- 任意模块直接复制数据库文件
+- View 直接执行备份
+- Router 直接操作文件
+
+---
+
+#### 15.21.4 唯一恢复入口
+
+所有恢复操作必须统一通过：
+
+BackupManager.restore()
+
+执行。
+
+禁止：
+
+任意模块直接覆盖数据库文件。
+
+---
+
+#### 15.21.5 Backup Scheduler
+
+自动备份只能由：
+
+APScheduler
+
+统一调度。
+
+Scheduler：
+
+仅负责调度。
+
+不得包含任何备份逻辑。
+
+---
+
+#### 15.21.6 文件命名规范
+
+备份文件统一格式：
+
+GTMS_YYYYMMDD_HHMMSS.db
+
+禁止：
+
+Magic String。
+
+文件名格式应统一使用常量。
+
+---
+
+#### 15.21.7 存储目录
+
+所有备份统一存放：
+
+backup/
+
+目录。
+
+禁止：
+
+散落多个目录。
+
+---
+
+#### 15.21.8 保留策略
+
+默认保留：
+
+最近 N 份备份。
+
+删除旧备份必须自动完成。
+
+不得无限增长。
+
+---
+
+#### 15.21.9 原子性
+
+备份文件必须完整生成后再替换。
+
+禁止：
+
+生成半个备份文件。
+
+---
+
+#### 15.21.10 恢复约束
+
+恢复前必须：
+
+验证备份文件存在。
+
+恢复失败不得覆盖原数据库。
+
+---
+
+#### 15.21.11 日志规范
+
+所有备份：
+
+必须记录：
+
+开始时间
+
+结束时间
+
+耗时
+
+结果
+
+异常原因
+
+统一使用：
+
+logging。
+
+禁止：
+
+print()。
+
+---
+
+#### 15.21.12 异常处理
+
+异常必须向上抛出。
+
+禁止：
+
+静默失败。
+
+---
+
+#### 15.21.13 Workflow
+
+Backup
+
+禁止引用：
+
+Workflow。
+
+---
+
+#### 15.21.14 Status Machine
+
+Backup
+
+禁止引用：
+
+Status Machine。
+
+---
+
+#### 15.21.15 Business Logic
+
+Backup
+
+不得包含任何业务逻辑。
+
+仅负责：
+
+数据库文件备份。
+
+---
+
+#### 15.21.16 测试要求
+
+必须覆盖：
+
+自动备份
+
+恢复
+
+文件不存在
+
+重复备份
+
+异常回滚
+
+保留策略
+
+---
+
+#### 15.21.17 Public API Freeze
+
+Backup Public API
+
+通过 Review 后冻结。
+
+---
+
+#### 15.21.18 Mini Freeze
+
+Backup
+
+完成后必须执行：
+
+Mini Freeze Review。
+
+---
+
+#### 15.21.19 Baseline Freeze
+
+Sprint Baseline
+
+统一冻结。
+
+---
+
+#### 15.21.20 Future Extension
+
+预留：
+
+增量备份
+
+压缩备份
+
+AES 加密
+
+云备份
+
+NAS
+
+OSS
+
+S3
+
+本 Sprint 不实现。
+
+### 15.22 Settings Principle（系统设置原则）
+
+#### 15.22.1 设计目标
+
+Settings 模块负责系统配置统一读取与保存。
+
+Settings 属于 Configuration Layer。
+
+Settings View 永远不得直接读取或写入配置文件，所有配置均必须通过 SettingsService（Server）和 Desktop SettingsService 完成。
+
+---
+
+#### 15.22.2 适用范围
+
+适用于：
+
+系统设置
+
+用户偏好
+
+路径配置
+
+备份配置
+
+通知配置
+
+后续系统参数
+
+---
+
+#### 15.22.3 唯一配置入口
+
+所有配置统一通过：
+
+SettingsService
+
+读取。
+
+禁止：
+
+View
+
+直接读取配置文件。
+
+---
+
+#### 15.22.4 唯一保存入口
+
+所有配置统一通过：
+
+SettingsService.save()
+
+保存。
+
+禁止：
+
+View
+
+直接写配置文件。
+
+---
+
+#### 15.22.5 配置来源
+
+配置统一来自：
+
+配置文件
+
+数据库
+
+后续配置中心
+
+禁止：
+
+散落读取。
+
+---
+
+#### 15.22.6 默认值
+
+所有配置必须提供：
+
+Default Value。
+
+禁止：
+
+None。
+
+---
+
+#### 15.22.7 配置验证
+
+保存前必须验证：
+
+类型
+
+范围
+
+格式
+
+禁止：
+
+非法配置写入。
+
+---
+
+#### 15.22.8 View Principle
+
+Settings View
+
+属于：
+
+Read-Only View。
+
+View：
+
+仅负责：
+
+显示
+
+编辑
+
+提交
+
+不得保存配置。
+
+---
+
+#### 15.22.9 Business Logic
+
+所有业务逻辑：
+
+统一位于：
+
+SettingsService。
+
+View
+
+禁止业务逻辑。
+
+---
+
+#### 15.22.10 Workflow
+
+Settings
+
+禁止引用：
+
+Workflow。
+
+---
+
+#### 15.22.11 Status Machine
+
+Settings
+
+禁止引用：
+
+Status Machine。
+
+---
+
+#### 15.22.12 Logging
+
+修改配置：
+
+必须记录：
+
+Audit Log。
+
+统一使用：
+
+LogService。
+
+---
+
+#### 15.22.13 Exception
+
+异常必须向上抛出。
+
+禁止：
+
+静默失败。
+
+---
+
+#### 15.22.14 Testing
+
+必须覆盖：
+
+读取配置
+
+保存配置
+
+默认值
+
+非法配置
+
+恢复默认配置
+
+---
+
+#### 15.22.15 Public API Freeze
+
+Settings Public API
+
+Review 后冻结。
+
+---
+
+#### 15.22.16 Mini Freeze
+
+Settings
+
+完成后执行：
+
+Mini Freeze Review。
+
+---
+
+#### 15.22.17 Baseline Freeze
+
+Sprint Baseline
+
+统一冻结。
+
+---
+
+#### 15.22.18 Future Extension
+
+预留：
+
+多用户配置
+
+配置导入
+
+配置导出
+
+配置模板
+
+在线配置中心
+
+热更新
+
+本 Sprint 不实现。
+
+### 15.23 Singleton Configuration Principle（单例配置原则）
+
+#### 15.23.1 Principle
+
+系统配置（Settings）属于**全局单例（Singleton Configuration）**。
+
+整个 GTMS 系统生命周期内，仅允许存在一份系统配置。
+
+所有模块必须通过统一的 `SettingsService` 获取或修改系统配置。
+
+任何模块不得自行读取、缓存、修改或创建新的配置实例。
+
+---
+
+#### 15.23.2 Architecture
+
+Settings 模块采用标准六层架构：
+
+```
+Settings Schema
+        ↓
+Settings Service
+        ↓
+Settings Router
+        ↓
+Desktop SettingsService
+        ↓
+Settings View
+```
+
+所有配置访问必须遵循上述调用链。
+
+禁止跨层调用。
+
+---
+
+#### 15.23.3 Public API
+
+Settings Service 仅允许提供单例配置相关接口。
+
+允许：
+
+- get_settings()
+- update_settings()
+
+可选（根据项目需要）：
+
+- reload_settings()
+- reset_settings()
+
+禁止新增：
+
+- create_settings()
+- delete_settings()
+- list_settings()
+- search_settings()
+- batch_update_settings()
+
+Settings 永远不是 CRUD 资源。
+
+---
+
+#### 15.23.4 HTTP Mapping
+
+Settings Router 仅允许以下接口：
+
+| HTTP | URI |
+|------|-----|
+| GET | /api/settings |
+| PUT | /api/settings |
+
+禁止：
+
+- POST /api/settings
+- DELETE /api/settings
+- GET /api/settings/{id}
+
+Settings 不存在 ID 概念。
+
+---
+
+#### 15.23.5 Singleton Rule
+
+整个系统：
+
+仅存在一份 Settings。
+
+Settings：
+
+不是集合（Collection）。
+
+不是列表（List）。
+
+不是分页资源（Pagination）。
+
+所有读取：
+
+均返回单个对象。
+
+所有修改：
+
+均修改当前配置。
+
+---
+
+#### 15.23.6 Dependency Principle
+
+任何模块不得：
+
+- 直接读取配置文件
+- 直接写入配置文件
+- 自行缓存配置
+- 自行维护 Settings 实例
+
+统一通过：
+
+SettingsService
+
+访问系统配置。
+
+---
+
+#### 15.23.7 Workflow
+
+Settings 模块：
+
+Zero Workflow。
+
+不得：
+
+引用 TrialTaskProcessStatus。
+
+不得：
+
+引用任何流程状态。
+
+---
+
+#### 15.23.8 Status Machine
+
+Settings 模块：
+
+Zero Status Machine。
+
+不得：
+
+引用 TrialTaskResultStatus。
+
+不得：
+
+包含任何状态流转逻辑。
+
+---
+
+#### 15.23.9 Business Logic
+
+Settings View：
+
+零业务逻辑。
+
+Settings Router：
+
+零业务逻辑。
+
+Desktop SettingsService：
+
+100% HTTP Mapping。
+
+所有业务逻辑：
+
+统一放置于：
+
+SettingsService。
+
+---
+
+#### 15.23.10 Audit Logging
+
+修改系统配置时：
+
+必须调用：
+
+LogService.create_log()。
+
+operation：
+
+统一使用：
+
+ActionType.UPDATE。
+
+module：
+
+统一使用：
+
+"settings"。
+
+description：
+
+统一采用 JSON 格式。
+
+---
+
+#### 15.23.11 Read Principle
+
+Settings View：
+
+属于 Read-Only 管理页面。
+
+允许：
+
+- 查看配置
+- 修改配置
+- 保存配置
+
+禁止：
+
+任何数据库操作。
+
+禁止：
+
+任何配置文件操作。
+
+禁止：
+
+任何业务计算。
+
+---
+
+#### 15.23.12 Recommended Design
+
+建议：
+
+SettingsService 始终返回单个 SettingsResponse。
+
+统一由：
+
+server/config.py
+
+维护配置入口。
+
+禁止：
+
+多个配置来源。
+
+禁止：
+
+多个 Settings 实例。
+
+禁止：
+
+配置复制。
+
+---
+
+#### 15.23.13 Future Extension
+
+以下能力仅作为未来扩展：
+
+- 配置模板
+- 配置导入
+- 配置导出
+- 配置版本管理
+- 配置历史
+- 配置同步
+- 云配置
+- 多环境配置
+
+本阶段均不实现。
+
+#### Singleton Configuration Checklist
+
+- 全局仅存在一份 Settings
+- 禁止 Create API
+- 禁止 Delete API
+- 禁止 List API
+- GET /api/settings 返回单对象
+- PUT /api/settings 更新单对象
+- 统一通过 SettingsService 访问配置
+- 未修改任何 Frozen API
+
 ---
 
 ## 16. V1.0 开发计划

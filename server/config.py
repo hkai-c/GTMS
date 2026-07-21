@@ -139,6 +139,34 @@ class Settings(BaseSettings):
     NOTIFY_CHECK_INTERVAL_MINUTES: int = 60
 
     # ============================================================
+    # 系统设置
+    # ============================================================
+
+    # 系统名称
+    SYSTEM_NAME: str = "GTMS"
+
+    # 公司名称
+    COMPANY_NAME: str = ""
+
+    # 界面主题
+    THEME: str = "light"
+
+    # 界面语言
+    LANGUAGE: str = "zh-CN"
+
+    # 时区
+    TIMEZONE: str = "Asia/Shanghai"
+
+    # 日志保留天数
+    LOG_RETENTION_DAYS: int = 90
+
+    # 备份保留天数
+    BACKUP_RETENTION_DAYS: int = 30
+
+    # 是否启用自动备份
+    BACKUP_ENABLED: bool = True
+
+    # ============================================================
     # 派生属性（计算得出）
     # ============================================================
 
