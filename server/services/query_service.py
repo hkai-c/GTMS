@@ -28,6 +28,10 @@ from datetime import datetime
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
+from server.core.exceptions import (
+    BusinessLogicException,
+    NotFoundException,
+)
 from server.models import (
     GrindingRecord,
     TrialTask,
@@ -217,6 +221,7 @@ class QueryService:
         Returns:
             list[RankingItem]: 机型排行列表。
         """
+        # BUG-BOUND-003 修复: 过滤 machine_type 为空的数据
         results = (
             db.query(
                 GrindingRecord.machine_type,
@@ -225,6 +230,8 @@ class QueryService:
             .join(TrialTask, TrialTask.id == GrindingRecord.task_id)
             .filter(TrialTask.is_deleted.is_(False))
             .filter(GrindingRecord.is_deleted.is_(False))
+            .filter(GrindingRecord.machine_type.isnot(None))
+            .filter(GrindingRecord.machine_type != "")
             .group_by(GrindingRecord.machine_type)
             .order_by(desc("cnt"))
             .limit(10)
@@ -292,11 +299,23 @@ class QueryService:
             )
 
         if query_filter.process_status is not None:
-            statuses = [
-                TrialTaskProcessStatus(s.strip())
-                for s in query_filter.process_status.split(",")
-                if s.strip()
-            ]
+            # BUG-STATS-001 修复: 捕获非法枚举值，转换为 HTTP 422
+            try:
+                statuses = [
+                    TrialTaskProcessStatus(s.strip())
+                    for s in query_filter.process_status.split(",")
+                    if s.strip()
+                ]
+            except ValueError as e:
+                from fastapi import HTTPException
+                from starlette import status
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "message": f"非法 process_status 值: {e}",
+                        "process_status": query_filter.process_status,
+                    },
+                ) from e
             if statuses:
                 query = query.filter(
                     TrialTask.process_status.in_(statuses),

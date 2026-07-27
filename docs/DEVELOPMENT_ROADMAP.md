@@ -521,100 +521,142 @@
 
 ---
 
-### Sprint 14：联调测试
+### Sprint 14：集成测试
 
 > 对应阶段 15 | 状态：⬜ 待开始 | 优先级：P0
 
+引用规范：§15.24 Integration Testing Principle、§15.25 Bug Fix Principle、§15.26 Release Freeze Principle
+
+Sprint 14 为 Sprint 15 Release Freeze 提供唯一入口。Sprint 14 完成后必须满足以下条件方可进入 Sprint 15：
+
+- Integration PASS
+- Regression PASS
+- Working Tree Clean
+- Documentation Complete
+
 | Task | 名称 | 内容 | 依赖 |
 |:--:|------|------|------|
-| 14.1 | 全流程走查 | 销售创建任务 → 收件 → 试磨 → 检测 → 去向 | Sprint 1~13 |
-| 14.2 | 权限测试 | 每个角色登录，验证菜单和操作权限 | Sprint 3 |
-| 14.3 | 状态流转测试 | 验证所有合法流转 + 非法流转被拒绝 | Sprint 5~9 |
-| 14.4 | 边界测试 | 空表单、超长文本、特殊字符、超时 Token | Sprint 1~13 |
-| 14.5 | 文件上传测试 | 各种类型、大小、非法类型 | Sprint 6~8 |
-| 14.6 | 统计验证 | 手动核对统计数据 | Sprint 10 |
-| 14.7 | 消息提醒测试 | 模拟超时任务 | Sprint 12 |
-| 14.8 | Bug 修复 | 汇总修复所有问题 | Task 14.1~14.7 |
+| 14.0 | Architecture Alignment Review | Sprint 14 架构对齐审查 | Sprint 1~13 |
+| 14.1 | End-to-End Workflow Test | 全流程端到端测试（含 Backup Restore、Settings Read/Update、Audit Log、Notification、Scheduler、Permission 验证；记录关键接口响应时间作为 AC-15 验证依据，本 Sprint 不进行压力测试） | Task 14.0 |
+| 14.2 | Permission Matrix Test | 权限矩阵测试 | Task 14.0 |
+| 14.3 | Status Machine Test | 状态机测试 | Task 14.0 |
+| 14.4 | Boundary Test | 边界测试 | Task 14.0 |
+| 14.5 | File Upload Test | 文件上传测试 | Task 14.0 |
+| 14.6 | Statistics Verification | 统计验证 | Task 14.0 |
+| 14.7 | Notification Test | 消息提醒测试 | Task 14.0 |
+| 14.8 | Bug Fix & Regression | Bug 修复与回归 | Task 14.1~14.7 |
 
 **Sprint 14 完成条件：**
 
 - [ ] AC-01 ~ AC-17 全部通过
 - [ ] BR-01 ~ BR-15 全部满足
-- [ ] 0 个阻断性 Bug
-- [ ] 界面与 UI_PROTOTYPE 一致
+- [ ] Regression PASS
+- [ ] Blocker = 0
+- [ ] Critical Bug = 0
 - [ ] Git Tag: `v0.14.0-sprint14`
 
 ---
 
-### Sprint 15：Windows 打包
+### Sprint 15：发行冻结（Release Candidate）
 
-> 对应阶段 16 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 16 | 状态：⬜ 待开始 | 优先级：P0
 
-| Task | 名称 | 产出 | 依赖 |
-|:--:|------|------|------|
-| 15.1 | PyInstaller spec 文件 | `GTMS.spec` | Sprint 14 |
-| 15.2 | 执行打包 | `dist/GTMS.exe` | Task 15.1 |
-| 15.3 | 打包测试 | 干净环境测试 | Task 15.2 |
-| 15.4 | 资源文件处理 | 图片、图标正常 | Task 15.2 |
+新增 Sprint。引用规范：§15.26 Release Freeze Principle
+
+Release Freeze 用于生成 Release Candidate (RC)，完成最终版本验证，冻结整个项目。不得新增任何业务功能。
+
+| Task | 名称 | 输入 | 输出 | 依赖 |
+|:--:|------|------|------|------|
+| 15.1 | Release Candidate | Sprint 14 | Release Candidate (RC) | Sprint 14 |
+| 15.2 | Release Notes | Task 15.1 | CHANGELOG、Release Notes、Version Information | Task 15.1 |
+| 15.3 | Final Verification | Task 15.2 | Regression、Smoke Test、Integration Review、Version Verification、Verification Report | Task 15.2 |
+| 15.4 | Release Freeze Review | Task 15.3 | Final Review、Git Clean、Git Commit、Git Push、Git Tag、Release Frozen | Task 15.3 |
 
 **Sprint 15 完成条件：**
 
-- [ ] GTMS.exe 可独立运行（无需 Python）
-- [ ] 所有功能正常
-- [ ] 文件大小 < 200MB
-- [ ] Git Tag: `v0.15.0-sprint15`
+- [ ] Release Candidate Ready
+- [ ] Regression PASS
+- [ ] Working Tree Clean
+- [ ] Documentation Complete
+- [ ] Git Tag: `v0.15.0-sprint15` + `v1.0.0-rc1`（若再次冻结：`v1.0.0-rc2`、`v1.0.0-rc3` ...）
 
 ---
 
-### Sprint 16：微信小程序
+### Sprint 16：Windows 桌面打包
 
-> 对应阶段 17 | 状态：⬜ 待开始 | 优先级：P2
+> 对应阶段 17 | 状态：⬜ 待开始 | 优先级：P1
 
-| Task | 名称 | 产出 | 参考 UI |
+| Task | 名称 | 产出 | 依赖 |
 |:--:|------|------|------|
-| 16.1 | UniApp 项目初始化 | 项目结构 | — |
-| 16.2 | 登录页 | `pages/login/index` | UI_PROTOTYPE §17.1 |
-| 16.3 | 仪表盘首页 | `pages/dashboard/index` | UI_PROTOTYPE §17.2 |
-| 16.4 | 任务列表 | `pages/task_list/index` | UI_PROTOTYPE §17.3 |
-| 16.5 | 任务详情 | `pages/task_detail/index` | UI_PROTOTYPE §17.4 |
-| 16.6 | 收件登记 | `pages/receipt/index` | UI_PROTOTYPE §17.5 |
-| 16.7 | 统计报表 | `pages/statistics/index` | UI_PROTOTYPE §17.6 |
-| 16.8 | 消息通知 | `pages/notification/index` | UI_PROTOTYPE §17.7 |
-| 16.9 | API 层封装 | `api/` 目录 | — |
-| 16.10 | 底部导航栏 | 首页/任务/统计/我的 | — |
-| 16.11 | 小程序测试 | 全流程 | — |
+| 16.1 | PyInstaller Spec | `GTMS.spec` | Sprint 15 |
+| 16.2 | Build Desktop | `dist/GTMS.exe` | Task 16.1 |
+| 16.3 | Packaging Test | Clean Environment Report | Task 16.2 |
+| 16.4 | Resource Packaging | Icons、Images、Resources | Task 16.2 |
+| 16.5 | Installer（预留） | Future Extension | — |
 
 **Sprint 16 完成条件：**
 
-- [ ] 全部 7 个页面与 UI 原型一致
-- [ ] 登录、查看任务、拍照上传功能正常
-- [ ] 微信开发者工具编译通过
+- [ ] GTMS.exe 可独立运行（无需 Python）
+- [ ] 所有功能正常
+- [ ] 文件大小符合要求
 - [ ] Git Tag: `v0.16.0-sprint16`
 
 ---
 
-### Sprint 17：部署上线
+### Sprint 17：微信小程序
 
-> 对应阶段 18 | 状态：⬜ 待开始 | 优先级：P1
+> 对应阶段 18 | 状态：⬜ 待开始 | 优先级：P2
 
-| Task | 名称 | 内容 | 依赖 |
+| Task | 名称 | 产出 | 参考 UI |
 |:--:|------|------|------|
-| 17.1 | 生产环境准备 | MySQL、Python、Nginx | Sprint 15 |
-| 17.2 | 数据库切换 | SQLite → MySQL，DDL + 种子数据 | Task 17.1 |
-| 17.3 | HTTPS 配置 | 域名 + 证书 | Task 17.1 |
-| 17.4 | 后端部署 | systemd / Windows Service | Task 17.2~17.3 |
-| 17.5 | 桌面端分发 | GTMS.exe 分发 | Sprint 15 |
-| 17.6 | 小程序审核 | 微信审核提交 | Sprint 16 |
-| 17.7 | 用户培训 | 各角色操作培训 | Task 17.5~17.6 |
-| 17.8 | 上线监控 | 日志、错误、性能 | Task 17.4 |
+| 17.1 | UniApp 项目初始化 | 项目结构 | — |
+| 17.2 | Login | `pages/login/index` | UI_PROTOTYPE §17.1 |
+| 17.3 | Dashboard | `pages/dashboard/index` | UI_PROTOTYPE §17.2 |
+| 17.4 | Task List | `pages/task_list/index` | UI_PROTOTYPE §17.3 |
+| 17.5 | Task Detail | `pages/task_detail/index` | UI_PROTOTYPE §17.4 |
+| 17.6 | Receipt | `pages/receipt/index` | UI_PROTOTYPE §17.5 |
+| 17.7 | Statistics | `pages/statistics/index` | UI_PROTOTYPE §17.6 |
+| 17.8 | Notification | `pages/notification/index` | UI_PROTOTYPE §17.7 |
+| 17.9 | API Layer | `api/` 目录 | — |
+| 17.10 | Bottom Navigation | 首页/任务/统计/我的 | — |
+| 17.11 | Integration Test | 全流程测试 | — |
 
 **Sprint 17 完成条件：**
 
-- [ ] 后端服务稳定运行
-- [ ] 桌面端可连接生产服务器
-- [ ] 小程序通过审核并上线
-- [ ] 用户可正常使用全部功能
-- [ ] Git Tag: `v1.0.0-release`
+- [ ] 全部 7 个页面与 UI 原型一致
+- [ ] 登录、查看任务、拍照上传功能正常
+- [ ] 微信开发者工具编译通过
+- [ ] Git Tag: `v0.17.0-sprint17`
+
+---
+
+### Sprint 18：生产部署与正式发布
+
+> 对应阶段 19 | 状态：⬜ 待开始 | 优先级：P1
+
+引用规范：§15.27 Deployment Principle
+
+| Task | 名称 | 内容 | 依赖 |
+|:--:|------|------|------|
+| 18.1 | Production Environment | MySQL、Python、Nginx | Sprint 16 |
+| 18.2 | Database Migration | SQLite → MySQL | Task 18.1 |
+| 18.3 | HTTPS | Domain + Certificate | Task 18.1 |
+| 18.4 | Backend Deployment | systemd / Windows Service | Task 18.2~18.3 |
+| 18.5 | Desktop Distribution | GTMS.exe 分发 | Sprint 16 |
+| 18.6 | Mini Program Release | 微信审核发布 | Sprint 17 |
+| 18.7 | User Training | 销售/技术员/管理员培训 | Task 18.5~18.6 |
+| 18.8 | Production Monitoring | 日志、性能、告警 | Task 18.4 |
+
+**Sprint 18 完成条件：**
+
+- [ ] Production Running
+- [ ] Desktop Connected
+- [ ] Mini Program Online
+- [ ] All Users Available
+- [ ] Deployment Guide Verified
+- [ ] Backup / Restore Verified
+- [ ] Monitoring Running
+- [ ] Git Tag: `v0.18.0-sprint18` + `v1.0.0`（正式发布 GA）
 
 ---
 
@@ -694,25 +736,35 @@
 | 12 | 12.3 | Notification Router | Router | SRS §4.9 | `server/routers/notification_router.py` |
 | 13 | 13.1 | 自动备份 | 工具 | CODE_WIKI §6.6.2 | `server/utils/backup.py` |
 | 13 | 13.3 | 系统设置页 | UI | UI_PROTOTYPE §16 | `client/views/settings_view.py` |
-| 14 | 14.1 | 全流程走查 | 测试 | — | — |
-| 14 | 14.2 | 权限测试 | 测试 | — | — |
-| 14 | 14.3 | 状态流转测试 | 测试 | — | — |
-| 15 | 15.2 | Windows 打包 | 部署 | CODE_WIKI §14.4 | `dist/GTMS.exe` |
-| 16 | 16.2~16.8 | 小程序 7 页面 | 小程序 | UI_PROTOTYPE §17 | `miniapp/pages/` |
-| 17 | 17.2 | 数据库切换 | 部署 | — | SQLite → MySQL |
-| 17 | 17.4 | 后端部署 | 部署 | — | 生产环境 |
+| 14 | 14.0 | Architecture Alignment Review | 测试 | CODE_WIKI §15.24 | Review Report |
+| 14 | 14.1 | End-to-End Workflow Test | 测试 | — | — |
+| 14 | 14.2 | Permission Matrix Test | 测试 | — | — |
+| 14 | 14.3 | Status Machine Test | 测试 | — | — |
+| 14 | 14.4 | Boundary Test | 测试 | — | — |
+| 14 | 14.5 | File Upload Test | 测试 | — | — |
+| 14 | 14.6 | Statistics Verification | 测试 | — | — |
+| 14 | 14.7 | Notification Test | 测试 | — | — |
+| 14 | 14.8 | Bug Fix & Regression | 测试 | — | — |
+| 15 | 15.1 | Release Candidate | 发行 | CODE_WIKI §15.26 | Release Candidate |
+| 15 | 15.4 | Release Freeze Review | 发行 | CODE_WIKI §15.26 | Release Frozen |
+| 16 | 16.2 | Build Desktop | 部署 | CODE_WIKI §14.4 | `dist/GTMS.exe` |
+| 17 | 17.2~17.8 | 小程序 7 页面 | 小程序 | UI_PROTOTYPE §17 | `miniapp/pages/` |
+| 18 | 18.2 | Database Migration | 部署 | — | SQLite → MySQL |
+| 18 | 18.4 | Backend Deployment | 部署 | — | 生产环境 |
+| 18 | 18.8 | Production Monitoring | 部署 | — | 监控告警 |
 
 ### 统计
 
 | 指标 | 数值 |
 |------|:--:|
 | Sprint 总数 | 18 |
-| Task 总数 | ~120 |
-| 已完成 Sprint | 1 (Sprint 0) |
-| 进行中 Sprint | 1 (Sprint 1) |
-| 待开始 Sprint | 16 |
-| 已完成 Task | 11 |
-| 当前进度 | ~10% |
+| Project Stage 总数 | 19 |
+| Task 总数 | ~130 |
+| 已完成 Sprint | 13 (Sprint 0~13) |
+| 进行中 Sprint | 0 |
+| 待开始 Sprint | 5 |
+| 已完成 Task | ~90 |
+| 当前进度 | ~70% |
 
 ---
 
@@ -1261,7 +1313,7 @@ data_control/
 
 ---
 
-## 16. 阶段 15：联调测试
+## 16. 阶段 15：集成测试
 
 ### 16.1 参考文档
 
@@ -1269,80 +1321,109 @@ data_control/
 |------|------|
 | SRS | §9 验收标准（全部 17 条 AC-01 ~ AC-17） |
 | SRS | §8 业务规则汇总（全部 15 条 BR-01 ~ BR-15） |
+| CODE_WIKI | §15.24 Integration Testing Principle、§15.25 Bug Fix Principle |
 
 ### 16.2 任务清单
 
 | # | 任务 | 内容 |
 |---|------|------|
-| 15.1 | 全流程走查 | 以销售身份创建任务 → 技术员收件 → 试磨 → 检测 → 去向，完整走一遍 |
-| 15.2 | 权限测试 | 每个角色登录，验证菜单可见性和操作权限 |
-| 15.3 | 状态流转测试 | 验证所有合法流转 + 非法流转被拒绝 |
-| 15.4 | 边界测试 | 空表单提交、超长文本、特殊字符、超时 Token |
-| 15.5 | 文件上传测试 | 各种类型、各种大小、非法类型 |
-| 15.6 | 统计验证 | 手动核对统计数据与数据库实际数据 |
-| 15.7 | 消息提醒测试 | 模拟超时任务，验证提醒生成 |
-| 15.8 | Bug 修复 | 汇总修复所有发现的问题 |
+| 15.1 | End-to-End Workflow Test | 全流程端到端测试：销售创建任务 → 收件 → 试磨 → 检测 → 去向 |
+| 15.2 | Permission Matrix Test | 每个角色登录，验证菜单和操作权限 |
+| 15.3 | Status Machine Test | 验证所有合法流转 + 非法流转被拒绝 |
+| 15.4 | Boundary Test | 空表单提交、超长文本、特殊字符、超时 Token |
+| 15.5 | File Upload Test | 各种类型、各种大小、非法类型 |
+| 15.6 | Statistics Verification | 手动核对统计数据与数据库实际数据 |
+| 15.7 | Notification Test | 模拟超时任务，验证提醒生成 |
+| 15.8 | Bug Fix & Regression | 汇总修复所有发现的问题，全量回归 |
 
-### 16.3 验收标准（对照 SRS §9）
+### 16.3 验收标准
 
 - [ ] AC-01 ~ AC-17 全部通过
 - [ ] BR-01 ~ BR-15 全部满足
-- [ ] 0 个阻断性 Bug
-- [ ] 界面与 UI_PROTOTYPE 一致
+- [ ] Regression PASS
+- [ ] Blocker = 0
+- [ ] Critical Bug = 0
 
 ---
 
-## 17. 阶段 16：Windows 打包
+## 17. 阶段 16：发行冻结
 
 ### 17.1 参考文档
 
 | 文档 | 对应章节 |
 |------|------|
-| CODE_WIKI | §14.4 桌面客户端打包 |
+| CODE_WIKI | §15.26 Release Freeze Principle |
 
 ### 17.2 任务清单
 
-| # | 任务 | 产出物 |
-|---|------|------|
-| 16.1 | 编写 PyInstaller spec 文件 | `GTMS.spec` |
-| 16.2 | 执行打包 | `dist/GTMS.exe` |
-| 16.3 | 测试打包后的 exe | 在干净 Windows 环境测试启动、登录、基本操作 |
-| 16.4 | 处理资源文件路径 | 确保图片、图标等资源正确打包 |
+| # | 任务 | 产出物 | 说明 |
+|---|------|------|------|
+| 16.1 | Release Candidate | Release Candidate (RC) | 基于 Sprint 14 成果创建 RC |
+| 16.2 | Release Notes | CHANGELOG、Release Notes、Version Information | 变更日志、版本说明 |
+| 16.3 | Final Verification | Regression、Smoke Test、Integration Review、Version Verification、Verification Report | 最终验证 |
+| 16.4 | Release Freeze Review | Final Review、Git Clean、Git Commit、Git Push、Git Tag | 冻结发布 |
 
 ### 17.3 验收标准
 
-- [ ] `GTMS.exe` 可独立运行（无需安装 Python）
-- [ ] 所有功能正常
-- [ ] 文件大小合理（< 200MB）
+- [ ] Release Candidate Ready
+- [ ] Regression PASS
+- [ ] Working Tree Clean
+- [ ] Documentation Complete
 
 ---
 
-## 18. 阶段 17：微信小程序
+## 18. 阶段 17：Windows 桌面打包
 
 ### 18.1 参考文档
+
+| 文档 | 对应章节 |
+|------|------|
+| CODE_WIKI | §14.4 桌面客户端打包 |
+
+### 18.2 任务清单
+
+| # | 任务 | 产出物 |
+|---|------|------|
+| 17.1 | 编写 PyInstaller spec 文件 | `GTMS.spec` |
+| 17.2 | 执行打包 | `dist/GTMS.exe` |
+| 17.3 | 测试打包后的 exe | 在干净 Windows 环境测试启动、登录、基本操作 |
+| 17.4 | 处理资源文件路径 | 确保图片、图标等资源正确打包 |
+| 17.5 | Installer（预留） | Future Extension |
+
+### 18.3 验收标准
+
+- [ ] `GTMS.exe` 可独立运行（无需安装 Python）
+- [ ] 所有功能正常
+- [ ] 文件大小符合要求
+
+---
+
+## 19. 阶段 18：微信小程序
+
+### 19.1 参考文档
 
 | 文档 | 对应章节 |
 |------|------|
 | UI_PROTOTYPE | §17 微信小程序页面设计（全部 7 个页面） |
 | CODE_WIKI | §8 小程序模块详解 |
 
-### 18.2 任务清单
+### 19.2 任务清单
 
 | # | 任务 | 产出物 | 对应UI |
 |---|------|------|------|
-| 17.1 | 初始化 UniApp 项目 | 项目结构 | — |
-| 17.2 | 创建 `pages/login/index` | 登录页 | UI §17.1 |
-| 17.3 | 创建 `pages/dashboard/index` | 仪表盘首页 | UI §17.2 |
-| 17.4 | 创建 `pages/task_list/index` | 任务列表 | UI §17.3 |
-| 17.5 | 创建 `pages/task_detail/index` | 任务详情 | UI §17.4 |
-| 17.6 | 创建 `pages/receipt/index` | 收件登记（拍照上传） | UI §17.5 |
-| 17.7 | 创建 `pages/statistics/index` | 统计报表 | UI §17.6 |
-| 17.8 | 创建 `pages/notification/index` | 消息通知 | UI §17.7 |
-| 17.9 | 封装 API 层 | `api/` 目录，封装所有接口调用 | — |
-| 17.10 | 底部导航栏 | 首页 / 任务 / 统计 / 我的 | UI §17.2 |
-| 17.11 | 小程序测试 | 全流程测试 | — |
+| 18.1 | 初始化 UniApp 项目 | 项目结构 | — |
+| 18.2 | 创建 `pages/login/index` | 登录页 | UI §17.1 |
+| 18.3 | 创建 `pages/dashboard/index` | 仪表盘首页 | UI §17.2 |
+| 18.4 | 创建 `pages/task_list/index` | 任务列表 | UI §17.3 |
+| 18.5 | 创建 `pages/task_detail/index` | 任务详情 | UI §17.4 |
+| 18.6 | 创建 `pages/receipt/index` | 收件登记（拍照上传） | UI §17.5 |
+| 18.7 | 创建 `pages/statistics/index` | 统计报表 | UI §17.6 |
+| 18.8 | 创建 `pages/notification/index` | 消息通知 | UI §17.7 |
+| 18.9 | 封装 API 层 | `api/` 目录，封装所有接口调用 | — |
+| 18.10 | 底部导航栏 | 首页 / 任务 / 统计 / 我的 | UI §17.2 |
+| 18.11 | 小程序测试 | 全流程测试 | — |
 
-### 18.3 验收标准
+### 19.3 验收标准
 
 - [ ] 全部 7 个页面与 UI_PROTOTYPE §17 一致
 - [ ] 登录、查看任务、收件登记（拍照上传）功能正常
@@ -1351,27 +1432,44 @@ data_control/
 
 ---
 
-## 19. 阶段 18：部署上线
+## 20. 阶段 19：生产部署与正式发布
 
-### 19.1 任务清单
+### 20.1 任务清单
 
 | # | 任务 | 内容 |
 |---|------|------|
-| 18.1 | 准备生产环境 | MySQL 安装、Python 环境、Nginx 配置 |
-| 18.2 | 切换数据库 | SQLite → MySQL，执行 DDL + 种子数据 |
-| 18.3 | 配置 HTTPS | 为小程序 API 准备域名和证书 |
-| 18.4 | 部署后端服务 | systemd 或 Windows Service 守护进程 |
-| 18.5 | 部署桌面客户端 | 分发 GTMS.exe |
-| 18.6 | 小程序审核发布 | 提交微信审核 |
-| 18.7 | 用户培训 | 各角色操作培训 |
-| 18.8 | 上线监控 | 监控日志、错误、性能 |
+| 19.1 | 准备生产环境 | MySQL 安装、Python 环境、Nginx 配置 |
+| 19.2 | 切换数据库 | SQLite → MySQL，执行 DDL + 种子数据 |
+| 19.3 | 配置 HTTPS | 为小程序 API 准备域名和证书 |
+| 19.4 | 部署后端服务 | systemd 或 Windows Service 守护进程 |
+| 19.5 | 部署桌面客户端 | 分发 GTMS.exe |
+| 19.6 | 小程序审核发布 | 提交微信审核 |
+| 19.7 | 用户培训 | 各角色操作培训 |
+| 19.8 | 上线监控 | 监控日志、错误、性能 |
 
-### 19.2 验收标准
+### 20.2 验收标准
 
-- [ ] 后端服务稳定运行
-- [ ] 桌面端可连接生产服务器
-- [ ] 小程序通过审核并上线
-- [ ] 用户可正常使用全部功能
+- [ ] Production Running
+- [ ] Desktop Connected
+- [ ] Mini Program Online
+- [ ] All Users Available
+- [ ] Git Tag: `v1.0.0`（正式发布 GA）
+
+---
+
+---
+
+## 版本策略
+
+| Sprint | 版本号 | 标签 | 说明 |
+|:--:|------|------|------|
+| 0 | v0.0.0-sprint0 | v0.0.0-sprint0 | 项目初始化 |
+| 1~13 | v0.1.0 ~ v0.13.0 | v0.1.0 ~ v0.13.0 | 功能开发 |
+| 14 | v0.14.0-sprint14 | v0.14.0-sprint14 | 集成测试 |
+| 15 | v0.15.0-sprint15 | v0.15.0-sprint15 + v1.0.0-rc1 | 发行冻结 (RC) |
+| 16 | v0.16.0-sprint16 | v0.16.0-sprint16 | Windows 桌面打包 |
+| 17 | v0.17.0-sprint17 | v0.17.0-sprint17 | 微信小程序 |
+| 18 | v0.18.0-sprint18 | v0.18.0-sprint18 + v1.0.0 | 正式发布（GA） |
 
 ---
 
@@ -1398,11 +1496,13 @@ data_control/
                                           │
                                           ▼
                                        阶段15 ──► 阶段16 ──► 阶段17
-                                       联调测试    Windows打包  小程序
+                                       集成测试    发行冻结   Windows打包
+                                          │
+                                          ├──► 阶段18 ──► 阶段19
+                                          │    微信小程序    生产部署
                                           │
                                           ▼
-                                       阶段18
-                                       部署上线
+                                       v1.0.0 GA
 ```
 
 ### B. 文件产出依赖（关键路径）

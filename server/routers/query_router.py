@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, Query, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from server.core.dependencies import (
@@ -107,9 +108,11 @@ def list_tasks(
         description="排序字段（id/task_no/created_at/updated_at/"
                     "process_status/result_status）",
     ),
+    # BUG-BOUND-004 修复: 添加正则校验，限制 sort_order 仅允许 asc/desc
     sort_order: str = Query(
         default="desc",
         description="排序方向（asc/desc）",
+        pattern=r"^(asc|desc)$",
     ),
     page: int = Query(
         default=1,
@@ -191,6 +194,8 @@ def get_statistics(
 
     调用 QueryService.get_statistics() 获取统计摘要。
 
+    BUG-STATS-002 修复: 捕获 Pydantic ValidationError 转换为 HTTP 422。
+
     Args:
         db: 数据库会话（依赖注入）。
         current_user: 当前登录用户（依赖注入）。
@@ -199,7 +204,14 @@ def get_statistics(
     Returns:
         StatisticsResponse: 统计摘要数据。
     """
-    return _query_service.get_statistics(db)
+    try:
+        return _query_service.get_statistics(db)
+    except ValidationError as e:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"errors": e.errors()},
+        ) from e
 
 
 # ============================================================

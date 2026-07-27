@@ -265,13 +265,16 @@ check("检查 failure_reason.strip()", "failure_reason.strip()" in source)
 # ----------------------------------------------------------
 # [16] 完成检测：推进状态
 # ----------------------------------------------------------
-print("\n[16] 完成检测：推进 process_status → DISPATCHED")
-check("推进 process_status 至 DISPATCHED",
-      "TrialTaskProcessStatus.DISPATCHED" in source)
+# BUG-E2E-006 修复后：finish_inspection 不再推进 process_status → DISPATCHED
+# Dispatch 模块负责 process_status → DISPATCHED
+print("\n[16] 完成检测：不推进 process_status（Dispatch 负责）")
+check("finish_inspection 不推进 process_status 至 DISPATCHED",
+      "TrialTaskProcessStatus.DISPATCHED" not in source)
 check("设置 result_status",
       "TrialTaskResultStatus.PASSED" in source)
-check("旧状态记录到日志",
-      "old_process_status" in source)
+# BUG-E2E-006 修复后：不再记录 process_status 变更日志
+check("不记录旧 process_status（无状态变更）",
+      "old_process_status" not in source)
 
 # ----------------------------------------------------------
 # [17] 完成检测：事务 + SystemLog
@@ -279,9 +282,11 @@ check("旧状态记录到日志",
 print("\n[17] 完成检测：事务 + SystemLog")
 check("finish_inspection try/commit", "db.commit()" in source)
 check("finish_inspection except rollback", "db.rollback()" in source)
-check("写入 SystemLog (STATUS_CHANGE)", 'ActionType.STATUS_CHANGE' in source)
-check("finish 写入至少 2 条 SystemLog",
-      source.count("self._write_log(") >= 2)
+# BUG-E2E-006 修复后：不写入 STATUS_CHANGE 日志（process_status 不变更）
+check("不写入 SystemLog (STATUS_CHANGE)",
+      'ActionType.STATUS_CHANGE' not in source)
+check("finish 写入 1 条 SystemLog（仅 UPDATE）",
+      source.count("self._write_log(") >= 1)
 
 # ----------------------------------------------------------
 # [18] 更新检测：exclude_unset

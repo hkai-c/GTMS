@@ -277,9 +277,11 @@ check("检查 failure_reason.strip()", "failure_reason.strip()" in source)
 # ----------------------------------------------------------
 # [18] 完成试磨：推进状态
 # ----------------------------------------------------------
-print("\n[18] 完成试磨：推进 process_status → DISPATCHED")
-check("推进 process_status 至 DISPATCHED",
-      "TrialTaskProcessStatus.DISPATCHED" in source)
+# BUG-E2E-006 修复后：finish_grinding 不再推进 process_status → DISPATCHED
+# Dispatch 模块负责 process_status → DISPATCHED
+print("\n[18] 完成试磨：不推进 process_status（Dispatch 负责）")
+check("finish_grinding 不推进 process_status 至 DISPATCHED",
+      "TrialTaskProcessStatus.DISPATCHED" not in source)
 check("设置 result_status", "task.result_status = result_status" in code)
 
 # ----------------------------------------------------------
@@ -359,7 +361,10 @@ check("导入 ActionType", "ActionType" in source)
 print("\n[28] 使用枚举常量值（TrialTaskProcessStatus）")
 check("使用 .RECEIVED", "TrialTaskProcessStatus.RECEIVED" in source)
 check("使用 .GRINDING", "TrialTaskProcessStatus.GRINDING" in source)
-check("使用 .DISPATCHED", "TrialTaskProcessStatus.DISPATCHED" in source)
+# BUG-E2E-006 修复后：grinding_service 不再使用 DISPATCHED
+# Dispatch 模块负责 DISPATCHED 状态推进
+check("不使用 .DISPATCHED（由 Dispatch 负责）",
+      "TrialTaskProcessStatus.DISPATCHED" not in source)
 
 # ----------------------------------------------------------
 # [29] 使用枚举常量值（TrialTaskResultStatus）

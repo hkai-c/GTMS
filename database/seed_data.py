@@ -49,36 +49,59 @@ ROLES = [
 ]
 
 # 权限（DB_DESIGN.md §8.2）
+# BUG-PERM-001/002 修复: 统一为 Router 规范 view/create/edit/delete
 PERMISSIONS = [
     # 用户管理
-    {"code": "user:read", "name": "查看用户", "module": "user"},
-    {"code": "user:write", "name": "编辑用户", "module": "user"},
+    {"code": "user:view", "name": "查看用户", "module": "user"},
+    {"code": "user:create", "name": "创建用户", "module": "user"},
+    {"code": "user:edit", "name": "编辑用户", "module": "user"},
     {"code": "user:delete", "name": "删除用户", "module": "user"},
     # 角色管理
-    {"code": "role:read", "name": "查看角色", "module": "role"},
-    {"code": "role:write", "name": "编辑角色", "module": "role"},
+    {"code": "role:view", "name": "查看角色", "module": "role"},
+    {"code": "role:create", "name": "创建角色", "module": "role"},
+    {"code": "role:edit", "name": "编辑角色", "module": "role"},
     # 任务管理
-    {"code": "task:read", "name": "查看任务", "module": "task"},
-    {"code": "task:write", "name": "编辑任务", "module": "task"},
-    {"code": "task:status_change", "name": "状态变更", "module": "task"},
+    {"code": "task:view", "name": "查看任务", "module": "task"},
+    {"code": "task:create", "name": "创建任务", "module": "task"},
+    {"code": "task:edit", "name": "编辑任务", "module": "task"},
     {"code": "task:delete", "name": "删除任务", "module": "task"},
+    # 客户管理
+    {"code": "customer:view", "name": "查看客户", "module": "customer"},
+    {"code": "customer:create", "name": "创建客户", "module": "customer"},
+    {"code": "customer:edit", "name": "编辑客户", "module": "customer"},
     # 收件管理
-    {"code": "receipt:read", "name": "查看收件", "module": "receipt"},
-    {"code": "receipt:write", "name": "编辑收件", "module": "receipt"},
+    {"code": "receipt:view", "name": "查看收件", "module": "receipt"},
+    {"code": "receipt:create", "name": "创建收件", "module": "receipt"},
+    {"code": "receipt:edit", "name": "编辑收件", "module": "receipt"},
+    {"code": "receipt:delete", "name": "删除收件", "module": "receipt"},
     # 试磨管理
-    {"code": "grinding:read", "name": "查看试磨", "module": "grinding"},
-    {"code": "grinding:write", "name": "编辑试磨", "module": "grinding"},
+    {"code": "grinding:view", "name": "查看试磨", "module": "grinding"},
+    {"code": "grinding:create", "name": "创建试磨", "module": "grinding"},
+    {"code": "grinding:edit", "name": "编辑试磨", "module": "grinding"},
+    {"code": "grinding:delete", "name": "删除试磨", "module": "grinding"},
     # 检测管理
-    {"code": "inspection:read", "name": "查看检测", "module": "inspection"},
-    {"code": "inspection:write", "name": "编辑检测", "module": "inspection"},
+    {"code": "inspection:view", "name": "查看检测", "module": "inspection"},
+    {"code": "inspection:create", "name": "创建检测", "module": "inspection"},
+    {"code": "inspection:edit", "name": "编辑检测", "module": "inspection"},
+    {"code": "inspection:delete", "name": "删除检测", "module": "inspection"},
     # 发货管理
-    {"code": "dispatch:read", "name": "查看发货", "module": "dispatch"},
-    {"code": "dispatch:write", "name": "编辑发货", "module": "dispatch"},
-    # 报告
-    {"code": "report:read", "name": "查看报告", "module": "report"},
-    {"code": "report:export", "name": "导出报告", "module": "report"},
-    # 系统管理
-    {"code": "system:admin", "name": "系统管理", "module": "system"},
+    {"code": "dispatch:view", "name": "查看发货", "module": "dispatch"},
+    {"code": "dispatch:create", "name": "创建发货", "module": "dispatch"},
+    {"code": "dispatch:edit", "name": "编辑发货", "module": "dispatch"},
+    {"code": "dispatch:delete", "name": "删除发货", "module": "dispatch"},
+    # 通知管理
+    {"code": "notification:view", "name": "查看通知", "module": "notification"},
+    {"code": "notification:create", "name": "创建通知", "module": "notification"},
+    {"code": "notification:edit", "name": "编辑通知", "module": "notification"},
+    # 查询统计
+    {"code": "query:view", "name": "查看统计", "module": "query"},
+    {"code": "query:export", "name": "导出数据", "module": "query"},
+    # 审计日志
+    {"code": "log:view", "name": "查看日志", "module": "log"},
+    {"code": "system", "name": "系统管理", "module": "system"},
+    # 设置
+    {"code": "settings:view", "name": "查看设置", "module": "settings"},
+    {"code": "settings:edit", "name": "编辑设置", "module": "settings"},
 ]
 
 # 用户（DB_DESIGN.md §8.3）
@@ -90,26 +113,35 @@ USERS = [
 ]
 
 # 角色-权限映射（DB_DESIGN.md §8.1 角色权限分配）
+# BUG-PERM-001/002 修复: 统一为 Router 规范 view/create/edit/delete
 ROLE_PERMISSION_MAP = {
     "administrator": "all",
     "manager": [
-        "task:read", "task:write", "task:status_change", "task:delete",
-        "receipt:read", "receipt:write",
-        "grinding:read", "grinding:write",
-        "inspection:read", "inspection:write",
-        "dispatch:read", "dispatch:write",
-        "report:read", "report:export",
+        "task:view", "task:create", "task:edit", "task:delete",
+        "customer:view", "customer:create", "customer:edit",
+        "receipt:view", "receipt:create", "receipt:edit", "receipt:delete",
+        "grinding:view", "grinding:create", "grinding:edit", "grinding:delete",
+        "inspection:view", "inspection:create", "inspection:edit", "inspection:delete",
+        "dispatch:view", "dispatch:create", "dispatch:edit", "dispatch:delete",
+        "notification:view", "notification:create", "notification:edit",
+        "query:view", "query:export",
+        "log:view",
     ],
     "technician": [
-        "task:read",
-        "grinding:read", "grinding:write",
-        "inspection:read", "inspection:write",
-        "report:read",
+        "task:view",
+        "grinding:view", "grinding:create", "grinding:edit",
+        "inspection:view", "inspection:create", "inspection:edit",
+        "notification:view",
     ],
     "viewer": [
-        "task:read",
-        "receipt:read",
-        "report:read",
+        "task:view",
+        "receipt:view",
+        "grinding:view",
+        "inspection:view",
+        "dispatch:view",
+        "customer:view",
+        "query:view",
+        "notification:view",
     ],
 }
 

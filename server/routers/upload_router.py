@@ -150,8 +150,8 @@ async def upload_image(
             detail=f"文件保存失败: {e}",
         ) from e
 
-    # ④ 构造 URL
-    file_url = f"{request.base_url}{UPLOAD_DIR}/{filename}"
+    # ④ 构造相对 URL（BUG-UPLOAD-003 修复: 使用相对路径，避免 Windows 绝对路径）
+    file_url = f"/{UPLOAD_DIR}/{filename}"
 
     # ⑤ 返回 Upload API Response
     return JSONResponse(

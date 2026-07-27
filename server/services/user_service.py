@@ -91,7 +91,7 @@ class UserService:
             BusinessLogicException: 角色不存在。
         """
         # ① 权限检查
-        self._check_admin(current_user, "user:write")
+        self._check_admin(current_user, "user:edit")
 
         # ② 检查 username 唯一性
         existing = db.query(User).filter(User.username == user_data.username).first()
@@ -279,7 +279,7 @@ class UserService:
             BusinessLogicException: 角色不存在。
         """
         # ① 权限检查
-        self._check_admin(current_user, "user:write")
+        self._check_admin(current_user, "user:edit")
 
         # ② 查询用户
         user = self.get_user(db, user_id=user_id)
@@ -442,7 +442,7 @@ class UserService:
             NotFoundException: 用户不存在。
         """
         # ① 权限检查
-        self._check_admin(current_user, "user:write")
+        self._check_admin(current_user, "user:edit")
 
         # ② 校验角色
         roles = self._get_roles(db, role_ids)

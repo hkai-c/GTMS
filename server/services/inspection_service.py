@@ -300,7 +300,7 @@ class InspectionService:
         failure_reason: Optional[str] = None,
         operator_id: Optional[int] = None,
     ) -> InspectionResponse:
-        """完成检测并推进任务状态至 DISPATCHED。
+        """完成检测并设置检测结论。
 
         流程:
             ① 校验 InspectionRecord 存在
@@ -308,9 +308,11 @@ class InspectionService:
             ③ 校验 result=FAIL 时 failure_reason 必填
             ④ 更新 InspectionRecord（result, failure_reason）
             ⑤ 设置 TrialTask.result_status
-            ⑥ 推进 TrialTask.process_status → DISPATCHED
-            ⑦ 提交事务
-            ⑧ 写入 SystemLog
+            ⑥ 提交事务
+            ⑦ 写入 SystemLog
+
+        注意: process_status 不在此处推进。
+              Dispatch 模块负责 process_status → DISPATCHED。
 
         Args:
             db: 数据库会话。
@@ -387,18 +389,14 @@ class InspectionService:
             task.result_status = TrialTaskResultStatus.PASSED
         else:
             task.result_status = TrialTaskResultStatus.FAILED
-
-        # ⑥ 推进 TrialTask.process_status → DISPATCHED
-        old_process_status = task.process_status
-        task.process_status = TrialTaskProcessStatus.DISPATCHED
         if operator_id is not None:
             task.updated_by = operator_id
 
         try:
-            # ⑦ 提交事务
+            # ⑥ 提交事务
             db.commit()
 
-            # ⑧ 写入 SystemLog
+            # ⑦ 写入 SystemLog
             changes["result_status"] = {
                 "old": old_result_status.value,
                 "new": task.result_status.value,
@@ -410,24 +408,6 @@ class InspectionService:
                 target_type="Inspection",
                 target_id=inspection.id,
                 changes=changes,
-            )
-
-            self._write_log(
-                db,
-                operator_id=operator_id or 0,
-                action=ActionType.STATUS_CHANGE,
-                target_type="TrialTask",
-                target_id=task.id,
-                changes={
-                    "process_status": {
-                        "old": old_process_status.value,
-                        "new": task.process_status.value,
-                    },
-                    "result_status": {
-                        "old": old_result_status.value,
-                        "new": task.result_status.value,
-                    },
-                },
             )
 
             db.refresh(inspection)

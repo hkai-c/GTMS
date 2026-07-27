@@ -8607,6 +8607,610 @@ server/config.py
 - 统一通过 SettingsService 访问配置
 - 未修改任何 Frozen API
 
+### 15.24 Integration Testing Principle（联调测试原则）
+
+#### 15.24.1 Purpose
+
+Integration Testing 用于验证 GTMS 各模块之间的真实协作关系，确保系统在完整业务流程下运行正确。
+
+联调测试属于质量保证（QA）阶段，不属于功能开发阶段。
+
+---
+
+#### 15.24.2 Scope
+
+Integration Testing 应覆盖所有已交付模块，包括但不限于：
+
+- Authentication
+- User / Role / Permission
+- Customer
+- Trial Task
+- Receipt
+- Grinding
+- Inspection
+- Dispatch
+- Query
+- Statistics
+- Audit Log
+- Notification
+- Backup
+- Settings
+- Scheduler
+
+---
+
+#### 15.24.3 Real Workflow Only
+
+联调测试必须使用真实业务流程。
+
+禁止：
+
+- 跳过流程
+- 跳过 Router
+- 跳过 Service
+- 人工修改数据库完成流程
+- Mock Workflow
+
+必须验证完整业务链路。
+
+例如：
+
+Sales
+
+↓
+
+Create Task
+
+↓
+
+Receipt
+
+↓
+
+Grinding
+
+↓
+
+Inspection
+
+↓
+
+Dispatch
+
+↓
+
+Close
+
+---
+
+#### 15.24.4 Real Service Invocation
+
+所有测试必须调用真实 Service。
+
+禁止：
+
+Mock Service。
+
+禁止：
+
+Stub Business Logic。
+
+---
+
+#### 15.24.5 Real Database
+
+Integration Testing 必须使用真实数据库。
+
+允许：
+
+测试数据库。
+
+禁止：
+
+Mock Database。
+
+禁止：
+
+Fake ORM。
+
+---
+
+#### 15.24.6 End-to-End Verification
+
+每一个业务流程必须同时验证：
+
+- HTTP Response
+- Database
+- Audit Log
+- Notification
+- Permission
+- Scheduler（如涉及）
+
+不得仅验证接口返回值。
+
+---
+
+#### 15.24.7 Permission Verification
+
+所有角色均应验证：
+
+- 菜单可见性
+- Button 权限
+- API 权限
+- 数据权限
+
+任何角色不得越权访问。
+
+---
+
+#### 15.24.8 Regression Requirement
+
+任何联调过程中发现的问题修复后：
+
+必须新增 Regression Test。
+
+不得仅人工验证。
+
+---
+
+#### 15.24.9 Frozen API
+
+Integration Testing 不得修改：
+
+- Schema
+- Service Public API
+- Router Public API
+- Desktop Service Public API
+- View Public API
+
+若必须修改，必须重新进入对应 Sprint Mini Freeze Review。
+
+---
+
+#### 15.24.10 Completion Standard
+
+Integration Testing 完成应满足：
+
+- AC 全部通过
+- BR 全部满足
+- Regression 全部 PASS
+- 无 Blocker
+- 无 Critical Bug
+- 系统可正常发布
+
+### 15.25 Bug Fix Principle（缺陷修复原则）
+
+#### 15.25.1 Purpose
+
+Bug Fix 用于修复已确认缺陷。
+
+Bug 修复不得引入新的业务功能。
+
+---
+
+#### 15.25.2 Allowed Changes
+
+允许：
+
+- Bug 修复
+- 空指针修复
+- 边界修复
+- 数据一致性修复
+- UI 修复
+- 文档修复
+- Regression Test
+
+---
+
+#### 15.25.3 Forbidden Changes
+
+禁止：
+
+- 新增 Feature
+- 新增 Workflow
+- 新增 Status Machine
+- 新增 Public API
+- 修改数据库设计
+- 修改 Architecture
+
+---
+
+#### 15.25.4 Frozen API
+
+不得修改：
+
+- Schema Public API
+- Service Public API
+- Router Public API
+- Desktop Service Public API
+- View Public API
+
+若必须修改：
+
+必须重新进入对应 Sprint Mini Freeze Review。
+
+---
+
+#### 15.25.5 Workflow
+
+Bug Fix 不得改变：
+
+业务流程。
+
+不得新增：
+
+审批流程。
+
+不得新增：
+
+状态流转。
+
+---
+
+#### 15.25.6 Status Machine
+
+禁止修改：
+
+- process_status
+- result_status
+- State Transition
+
+不得新增状态。
+
+不得删除状态。
+
+---
+
+#### 15.25.7 Regression Test
+
+每一个 Bug：
+
+必须：
+
+新增至少一个 Regression Test。
+
+原则：
+
+Bug 可复现。
+
+↓
+
+修复。
+
+↓
+
+Regression 永久保留。
+
+---
+
+#### 15.25.8 Root Cause
+
+每一个 Bug：
+
+建议记录：
+
+- Bug 原因
+- 修复方式
+- 是否影响历史版本
+- 是否影响数据库
+- 是否影响 Public API
+
+---
+
+#### 15.25.9 Review
+
+所有 Bug 修复完成后：
+
+必须：
+
+Regression PASS。
+
+通过 Mini Freeze Review 后：
+
+方可进入下一阶段。
+
+---
+
+#### 15.25.10 Completion Standard
+
+Bug Fix 完成应满足：
+
+- Bug 不再复现
+- Regression 全部 PASS
+- Frozen API 未修改
+- Workflow 未修改
+- Status Machine 未修改
+- 无新增副作用
+
+#### 15.25.11 Bug Classification（缺陷分级）
+
+规定：
+
+Critical：必须立即修复，不得延期。
+Major：允许延期至 Sprint Bug Fix 阶段（如 Task 14.8）。
+Minor：允许延期至 Sprint Bug Fix 阶段。
+Enhancement：不属于 Bug，不纳入当前 Sprint，进入 Future Sprint。
+
+### 15.26 Release Freeze Principle（发布冻结原则）
+
+#### 15.26.1 Purpose
+
+Release Freeze 用于冻结 GTMS 当前版本，作为正式发布候选版本（Release Candidate，RC）。
+
+Release Freeze 属于项目生命周期最后阶段，用于确保版本稳定、可部署、可交付。
+
+进入 Release Freeze 后，不再进行任何业务功能开发。
+
+---
+
+#### 15.26.2 Entry Criteria
+
+进入 Release Freeze 前，应满足：
+
+- 所有 Sprint 已完成
+- 所有 Sprint Baseline 已冻结
+- 所有 Public API 已冻结
+- Integration Testing 全部通过
+- Regression 全部通过
+- Documentation 全部完成
+- Git Working Tree Clean
+
+未满足上述条件，不得进入 Release Freeze。
+
+---
+
+#### 15.26.3 Frozen Scope
+
+Release Freeze 后冻结内容包括：
+
+- Database Schema
+- ORM Model
+- Schema Public API
+- Service Public API
+- Router Public API
+- Desktop Service Public API
+- View Public API
+- Workflow
+- Status Machine
+- Permission Matrix
+- Scheduler
+- Notification Rules
+- Backup Rules
+- Settings Rules
+
+除 Hotfix 外，不得修改。
+
+---
+
+#### 15.26.4 Allowed Changes
+
+Release Freeze 后，仅允许：
+
+- Blocker Bug 修复
+- Critical Bug 修复
+- 文档修正
+- 发布说明（Release Notes）
+- Regression Test 补充
+
+所有修改均应经过 Review。
+
+---
+
+#### 15.26.5 Forbidden Changes
+
+禁止：
+
+- 新增业务功能
+- 新增模块
+- 修改 Workflow
+- 修改 Status Machine
+- 修改 Public API
+- 修改数据库结构
+- 修改权限模型
+- 修改架构设计
+
+任何违反上述规则的修改，应推迟至下一版本。
+
+---
+
+#### 15.26.6 Hotfix Rule
+
+若 Release Freeze 后发现 Blocker 或 Critical Bug：
+
+允许：
+
+- Hotfix 修复
+- Regression Test
+- Mini Freeze Review
+
+不得：
+
+顺便修改其它功能。
+
+Hotfix 应保持最小变更原则（Minimal Change Principle）。
+
+---
+
+#### 15.26.7 Version Verification
+
+Release 前必须验证：
+
+- 所有单元测试 PASS
+- 所有集成测试 PASS
+- 所有回归测试 PASS
+- AC（Acceptance Criteria）全部满足
+- BR（Business Rules）全部满足
+- UI 与 UI_PROTOTYPE 一致
+- Audit Log 正常
+- Notification 正常
+- Backup / Restore 正常
+- Scheduler 正常
+- Permission Matrix 正常
+
+---
+
+#### 15.26.8 Git Baseline
+
+正式发布前，应完成：
+
+git add .
+
+↓
+
+git commit
+
+↓
+
+git push
+
+↓
+
+git tag -a vx.x.x
+
+↓
+
+git push origin vx.x.x
+
+Git Tag 应对应唯一发布版本。
+
+---
+
+#### 15.26.9 Release Documentation
+
+Release Freeze 应包含：
+
+- Release Notes
+- CHANGELOG
+- Git Tag
+- 测试报告
+- 部署说明（Deployment Guide，如有）
+- 用户使用说明（User Guide，如有）
+
+确保版本可追溯。
+
+---
+
+#### 15.26.10 Exit Criteria
+
+Release Freeze 完成应满足：
+
+- Release Candidate 已确认
+- Git Tag 已创建
+- Git Repository 已同步
+- Working Tree Clean
+- Documentation 完整
+- Blocker = 0
+- Critical Bug = 0
+- Regression PASS
+- 系统允许正式发布（General Availability，GA）
+
+Release Freeze 完成后，当前版本正式发布。
+
+后续开发应基于下一版本（Next Version）进行，不得直接修改已发布版本。
+
+---
+
+### 15.27 Deployment Principle（部署原则）
+
+#### 15.27.1 Purpose
+
+Deployment Principle 用于规范 GTMS 生产环境部署流程。
+
+确保：
+- 部署可重复
+- 部署可验证
+- 部署可回滚
+- 监控完备
+
+---
+
+#### 15.27.2 Production Environment
+
+生产环境必须满足：
+
+- **Python**：3.12+
+- **Database**：MySQL 8.0+
+- **Web Server**：Nginx（反向代理 + HTTPS）
+- **HTTPS**：域名 + 有效证书
+
+所有环境变量应通过配置文件注入，不得硬编码。
+
+---
+
+#### 15.27.3 Deployment Workflow
+
+部署流程（必须按顺序执行）：
+
+1. **Build** — 构建部署包
+2. **Backup** — 备份当前版本
+3. **Deploy** — 部署新版本
+4. **Verify** — 验证部署结果
+5. **Monitor** — 启动监控
+
+每一步失败应支持回滚。
+
+---
+
+#### 15.27.4 Database Migration
+
+数据库迁移要求：
+
+- **SQLite → MySQL**：DDL 迁移脚本
+- **种子数据**：初始角色、用户、权限
+- **Migration**：版本化迁移脚本
+- **Rollback**：支持回滚到上一版本
+
+迁移前必须备份数据库，迁移后验证数据完整性。
+
+---
+
+#### 15.27.5 Backup
+
+部署前必须执行：
+
+- 完整数据库备份
+- 配置文件备份
+- 上传文件备份
+
+部署后验证：
+
+- 备份文件可恢复
+- 恢复后数据完整
+
+---
+
+#### 15.27.6 Monitoring
+
+生产环境必须监控：
+
+- **Log**：应用日志、错误日志、访问日志
+- **Performance**：响应时间、吞吐量、并发数
+- **Health Check**：定期健康检查（/health endpoint）
+- **Alert**：异常告警（邮件/企业微信/短信）
+
+---
+
+#### 15.27.7 Rollback
+
+支持快速回滚：
+
+- 版本回滚：切换到上一版本 Git Tag
+- 数据库恢复：通过备份文件恢复
+- 配置恢复：恢复配置文件
+
+回滚流程应预先演练，确保可用。
+
+---
+
+#### 15.27.8 Exit Criteria
+
+部署完成应满足：
+
+- Deployment PASS
+- Monitoring PASS
+- Rollback Verified
+- GA Ready
+
 ---
 
 ## 16. V1.0 开发计划

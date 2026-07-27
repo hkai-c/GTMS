@@ -171,6 +171,9 @@ class NotificationService:
         重复创建（相同 user_id + notification_type + target_type +
         target_id + is_read=False）抛出 BusinessLogicException。
 
+        BUG-NOTIFY-004 修复: is_read=True 时跳过重复检查，
+        允许创建已读通知不受幂等限制。
+
         Args:
             db: 数据库会话。
             data: 消息提醒创建数据。
@@ -181,21 +184,23 @@ class NotificationService:
         Raises:
             BusinessLogicException: 重复消息提醒。
         """
-        duplicate = self._find_duplicate(
-            db,
-            target_user_id=data.user_id,
-            notification_type=data.notification_type,
-            task_id=data.target_id,
-        )
-        if duplicate is not None:
-            raise BusinessLogicException(
-                "相同消息提醒已存在",
-                detail={
-                    "user_id": data.user_id,
-                    "notification_type": data.notification_type.value,
-                    "target_id": data.target_id,
-                },
+        # BUG-NOTIFY-004: is_read=True 时跳过 _find_duplicate 检查
+        if not data.is_read:
+            duplicate = self._find_duplicate(
+                db,
+                target_user_id=data.user_id,
+                notification_type=data.notification_type,
+                task_id=data.target_id,
             )
+            if duplicate is not None:
+                raise BusinessLogicException(
+                    "相同消息提醒已存在",
+                    detail={
+                        "user_id": data.user_id,
+                        "notification_type": data.notification_type.value,
+                        "target_id": data.target_id,
+                    },
+                )
         notification = Notification(
             task_id=data.target_id,
             type=data.notification_type,

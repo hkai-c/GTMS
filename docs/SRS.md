@@ -987,5 +987,5 @@ GrindingRecord.operator_id = current_user.id
 ---
 
 > **文档维护者：** GTMS 开发团队  
-> **最后更新：** 2026-07-02  
-> **对应版本：** V1.0
+> **最后更新：** 2026-07-21  
+> **对应版本：** Sprint 13 — v0.13.0-sprint13（Sprint 14~18 规划中）

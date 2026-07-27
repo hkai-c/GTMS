@@ -305,7 +305,7 @@ class GrindingService:
         end_time: Optional[datetime] = None,
         operator_id: Optional[int] = None,
     ) -> GrindingResponse:
-        """完成试磨并推进任务状态至 DISPATCHED。
+        """完成试磨并设置试磨结果。
 
         流程:
             ① 校验 GrindingRecord 存在
@@ -314,9 +314,11 @@ class GrindingService:
             ④ 校验 result_status=failed 时 failure_reason 必填
             ⑤ 更新 GrindingRecord（end_time, fail_reason）
             ⑥ 设置 TrialTask.result_status
-            ⑦ 推进 TrialTask.process_status → DISPATCHED
-            ⑧ 提交事务
-            ⑨ 写入 SystemLog
+            ⑦ 提交事务
+            ⑧ 写入 SystemLog
+
+        注意: process_status 不在此处推进。
+              Dispatch 模块负责 process_status → DISPATCHED。
 
         Args:
             db: 数据库会话。
@@ -401,21 +403,20 @@ class GrindingService:
         if operator_id is not None:
             grinding.updated_by = operator_id
 
-        # ⑥ 设置 TrialTask.result_status
+        # ⑥ 设置 TrialTask.result_status 和 failure_reason
+        # BUG-STATUS-003 修复: 同步 failure_reason 到 TrialTask
         old_result_status = task.result_status
         task.result_status = result_status
-
-        # ⑦ 推进 TrialTask.process_status → DISPATCHED
-        old_process_status = task.process_status
-        task.process_status = TrialTaskProcessStatus.DISPATCHED
+        if result_status == TrialTaskResultStatus.FAILED and failure_reason:
+            task.failure_reason = failure_reason
         if operator_id is not None:
             task.updated_by = operator_id
 
         try:
-            # ⑧ 提交事务
+            # ⑦ 提交事务
             db.commit()
 
-            # ⑨ 写入 SystemLog
+            # ⑧ 写入 SystemLog
             changes["result_status"] = {
                 "old": old_result_status.value,
                 "new": result_status.value,
@@ -427,24 +428,6 @@ class GrindingService:
                 target_type="Grinding",
                 target_id=grinding.id,
                 changes=changes,
-            )
-
-            self._write_log(
-                db,
-                operator_id=operator_id or 0,
-                action=ActionType.STATUS_CHANGE,
-                target_type="TrialTask",
-                target_id=task.id,
-                changes={
-                    "process_status": {
-                        "old": old_process_status.value,
-                        "new": task.process_status.value,
-                    },
-                    "result_status": {
-                        "old": old_result_status.value,
-                        "new": result_status.value,
-                    },
-                },
             )
 
             db.refresh(grinding)

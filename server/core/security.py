@@ -164,48 +164,63 @@ def decode_access_token(token: str) -> dict[str, Any]:
 # 角色-权限映射（基于 RBAC）
 # ============================================================
 
-# 全部 20 个权限代码
+# 全部权限代码（Router 规范: view/create/edit/delete）
+# BUG-PERM-001/002 修复: 统一为 Router 规范，废弃 read/write
 _ALL_PERMISSIONS = {
     # 用户管理
-    "user:read", "user:write", "user:delete",
+    "user:view", "user:create", "user:edit", "user:delete",
     # 角色管理
-    "role:read", "role:write",
+    "role:view", "role:create", "role:edit",
     # 任务管理
-    "task:read", "task:write", "task:status_change", "task:delete",
+    "task:view", "task:create", "task:edit", "task:delete",
+    # 客户管理
+    "customer:view", "customer:create", "customer:edit",
     # 收件管理
-    "receipt:read", "receipt:write",
+    "receipt:view", "receipt:create", "receipt:edit", "receipt:delete",
     # 试磨管理
-    "grinding:read", "grinding:write",
+    "grinding:view", "grinding:create", "grinding:edit", "grinding:delete",
     # 检测管理
-    "inspection:read", "inspection:write",
+    "inspection:view", "inspection:create", "inspection:edit", "inspection:delete",
     # 发货管理
-    "dispatch:read", "dispatch:write",
-    # 报告
-    "report:read", "report:export",
-    # 系统管理
-    "system:admin",
+    "dispatch:view", "dispatch:create", "dispatch:edit", "dispatch:delete",
+    # 通知管理
+    "notification:view", "notification:create", "notification:edit",
+    # 查询统计
+    "query:view", "query:export",
+    # 审计日志
+    "log:view", "system",
+    # 设置
+    "settings:view", "settings:edit",
 }
 
 ROLE_PERMISSION_MAP: dict[str, set[str]] = {
     "administrator": _ALL_PERMISSIONS,
     "manager": {
-        "task:read", "task:write", "task:status_change", "task:delete",
-        "receipt:read", "receipt:write",
-        "grinding:read", "grinding:write",
-        "inspection:read", "inspection:write",
-        "dispatch:read", "dispatch:write",
-        "report:read", "report:export",
+        "task:view", "task:create", "task:edit", "task:delete",
+        "customer:view", "customer:create", "customer:edit",
+        "receipt:view", "receipt:create", "receipt:edit", "receipt:delete",
+        "grinding:view", "grinding:create", "grinding:edit", "grinding:delete",
+        "inspection:view", "inspection:create", "inspection:edit", "inspection:delete",
+        "dispatch:view", "dispatch:create", "dispatch:edit", "dispatch:delete",
+        "notification:view", "notification:create", "notification:edit",
+        "query:view", "query:export",
+        "log:view",
     },
     "technician": {
-        "task:read",
-        "grinding:read", "grinding:write",
-        "inspection:read", "inspection:write",
-        "report:read",
+        "task:view",
+        "grinding:view", "grinding:create", "grinding:edit",
+        "inspection:view", "inspection:create", "inspection:edit",
+        "notification:view",
     },
     "viewer": {
-        "task:read",
-        "receipt:read",
-        "report:read",
+        "task:view",
+        "receipt:view",
+        "grinding:view",
+        "inspection:view",
+        "dispatch:view",
+        "customer:view",
+        "query:view",
+        "notification:view",
     },
 }
 

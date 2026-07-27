@@ -78,10 +78,11 @@ DELETE_SERVICES = [
 ]
 
 # Services that have STATUS_CHANGE operation
+# BUG-E2E-006 修复后：inspection_service 不再写入 STATUS_CHANGE 日志
+# finish_inspection 不再推进 process_status，由 Dispatch 负责
 STATUS_CHANGE_SERVICES = [
     "receipt_service",
     "grinding_service",
-    "inspection_service",
     "dispatch_service",
 ]
 

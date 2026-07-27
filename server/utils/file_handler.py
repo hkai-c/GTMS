@@ -202,6 +202,16 @@ def validate_file(file: UploadFile, file_type: FileType) -> None:
             },
         )
 
+    # BUG-UPLOAD-001 修复: 检查空文件（0 字节）
+    if file_size == 0:
+        raise BusinessLogicException(
+            "文件不能为空（0 字节）",
+            detail={
+                "file_type": file_type.value,
+                "file_size": file_size,
+            },
+        )
+
     # ② 检查文件大小
     if file_size > size_limit:
         limit_mb = size_limit / (1024 * 1024)
@@ -212,6 +222,16 @@ def validate_file(file: UploadFile, file_type: FileType) -> None:
                 "file_type": file_type.value,
                 "file_size": file_size,
                 "size_limit": size_limit,
+            },
+        )
+
+    # BUG-UPLOAD-002 修复: 检查 content_type 必须存在
+    if file.content_type is None:
+        raise BusinessLogicException(
+            "文件 MIME 类型不能为空",
+            detail={
+                "file_type": file_type.value,
+                "filename": original_filename,
             },
         )
 

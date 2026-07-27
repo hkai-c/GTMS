@@ -7,7 +7,8 @@
 
 流转规则（严格单向）：
     CREATED → RECEIVED → GRINDING → DISPATCHED → CLOSED
-                                           ↑
+                         ↓
+                       CLOSED（试磨失败时跳过 DISPATCHED）
     禁止跳级、禁止逆向、CLOSED 为终态。
 
 UI 颜色：
@@ -65,7 +66,10 @@ class TrialTaskProcessStatus(str, Enum):
         _flow_map = {
             TrialTaskProcessStatus.CREATED: [TrialTaskProcessStatus.RECEIVED],
             TrialTaskProcessStatus.RECEIVED: [TrialTaskProcessStatus.GRINDING],
-            TrialTaskProcessStatus.GRINDING: [TrialTaskProcessStatus.DISPATCHED],
+            TrialTaskProcessStatus.GRINDING: [
+                TrialTaskProcessStatus.DISPATCHED,
+                TrialTaskProcessStatus.CLOSED,
+            ],
             TrialTaskProcessStatus.DISPATCHED: [TrialTaskProcessStatus.CLOSED],
             TrialTaskProcessStatus.CLOSED: [],  # 终态
         }
