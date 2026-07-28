@@ -47,7 +47,7 @@ from server.scheduler import start_scheduler
 
 app = FastAPI(
     title="GTMS API",
-    version="0.2.0",
+    version="1.0.0-rc1",
     description="Grinding Trial Management System API",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -104,7 +104,7 @@ async def root() -> JSONResponse:
     return JSONResponse(
         content={
             "message": "GTMS API Running",
-            "version": "0.2.0",
+            "version": "1.0.0-rc1",
         },
     )
 

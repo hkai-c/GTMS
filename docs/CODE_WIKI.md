@@ -552,7 +552,7 @@ from server.middleware.log_middleware import setup_request_logging
 
 app = FastAPI(
     title="GTMS API",
-    version="0.2.0",
+    version="1.0.0-rc1",
     description="Grinding Trial Management System API",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -578,7 +578,7 @@ async def root() -> JSONResponse:
     """健康检查 — 根路径"""
     return JSONResponse(content={
         "message": "GTMS API Running",
-        "version": "0.2.0",
+        "version": "1.0.0-rc1",
     })
 
 

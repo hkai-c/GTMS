@@ -92,7 +92,7 @@ check("title = GTMS API", app.title == "GTMS API",
 # 5. version
 # ============================================================
 print("\n[5] version")
-check("version = 0.2.0", app.version == "0.2.0",
+check("version = 1.0.0-rc1", app.version == "1.0.0-rc1",
       f"实际: {app.version}")
 
 # ============================================================
@@ -123,8 +123,8 @@ data = response.json()
 check("message = GTMS API Running",
       data.get("message") == "GTMS API Running",
       f"实际: {data.get('message')}")
-check("version = 0.2.0",
-      data.get("version") == "0.2.0",
+check("version = 1.0.0-rc1",
+      data.get("version") == "1.0.0-rc1",
       f"实际: {data.get('version')}")
 
 # ============================================================
@@ -242,8 +242,8 @@ check("openapi 版本 = 3.1.0",
 check("info.title = GTMS API",
       openapi_schema["info"]["title"] == "GTMS API",
       f"实际: {openapi_schema['info']['title']}")
-check("info.version = 0.2.0",
-      openapi_schema["info"]["version"] == "0.2.0",
+check("info.version = 1.0.0-rc1",
+      openapi_schema["info"]["version"] == "1.0.0-rc1",
       f"实际: {openapi_schema['info']['version']}")
 check("paths 包含 /",
       "/" in openapi_schema["paths"],
